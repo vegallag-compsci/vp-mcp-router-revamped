@@ -297,6 +297,11 @@ public final class BatchApplier {
             associationEnd.setMultiplicity(multiplicity);
             entry.addProperty(prefix + "_multiplicity", associationEnd.getMultiplicity());
         }
+        String aggregation = stringField(op, prefix + "_aggregation");
+        if (aggregation != null) {
+            associationEnd.setAggregationKind(aggregation);
+            entry.addProperty(prefix + "_aggregation", associationEnd.getAggregationKind());
+        }
         JsonElement navigable = op.get(prefix + "_navigable");
         if (navigable != null && !navigable.isJsonNull()) {
             associationEnd.setNavigable(navigable.getAsBoolean()

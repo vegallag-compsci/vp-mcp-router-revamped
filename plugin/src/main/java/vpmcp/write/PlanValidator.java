@@ -228,6 +228,12 @@ public final class PlanValidator {
         if (problem == null) {
             problem = multiplicityProblem(op.get("to_multiplicity"), "to_multiplicity");
         }
+        if (problem == null) {
+            problem = aggregationProblem(op.get("from_aggregation"), "from_aggregation");
+        }
+        if (problem == null) {
+            problem = aggregationProblem(op.get("to_aggregation"), "to_aggregation");
+        }
         for (String field : new String[] {"from_navigable", "to_navigable", "identifying"}) {
             if (problem == null) {
                 problem = booleanProblem(op.get(field), field);
@@ -829,6 +835,20 @@ public final class PlanValidator {
             return "\"" + field + "\" must be one of " + MULTIPLICITY_HELP + ".";
         }
         return null;
+    }
+
+    private static String aggregationProblem(JsonElement value, String field) {
+        if (value == null || value.isJsonNull()) {
+            return null;
+        }
+        if (value.isJsonPrimitive()) {
+            String aggregation = value.getAsString();
+            if (aggregation.equals("none") || aggregation.equals("shared")
+                    || aggregation.equals("composite")) {
+                return null;
+            }
+        }
+        return "\"" + field + "\" must be one of none/shared/composite.";
     }
 
     private static String booleanProblem(JsonElement value, String field) {

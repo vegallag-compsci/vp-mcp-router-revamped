@@ -27,3 +27,4 @@
 | [0023](0023-qa-fixes.md) | QA-cycle findings (member fields, save guard, doc-only decisions) | accepted |
 | [0024](0024-keys-and-ends.md) | Keys and relationship ends (PK/unique, multiplicities, FKs) | accepted |
 | [0025](0025-open-diagram.md) | open_diagram (bring a diagram to the front) | accepted |
+| [0026](0026-association-aggregations.md) | Association aggregation fields | accepted |
