@@ -35,6 +35,7 @@ Built on [chramiq/vp-mcp-router](https://github.com/chramiq/vp-mcp-router):
 | `update_element.tagged_values` | Fill in use case specs (Preconditions, Level, ...) in the model |
 | `create_element.container` | New use cases land inside the System boundary |
 | Automatic `.vpp` backups before writes | A restore point even for batches you regret |
+| `vp_list_changes`, `vp_revert_batch` | A change journal: see what the agent changed, undo one batch |
 | Windows installer and release script, Claude Code skill | First-class Windows + Claude Code support |
 
 See [CHANGELOG.md](CHANGELOG.md) for details.
@@ -117,6 +118,9 @@ descriptions are the contract; the skill
   final and called out in the preview.
 - The `.vpp` is copied to `<plugin dir>\backups\<project>\` before writes
   (`backup`, `backup_dir`, `backup_keep` in `mcp.properties`).
+- Every batch is journaled to `<plugin dir>\journal\<project>.jsonl`;
+  `vp_revert_batch` (dry run first, then `confirm: true`) undoes one
+  batch from the current VP session.
 - Never auto-saves; `vp_save_project` is confirm-gated.
 
 ## Develop

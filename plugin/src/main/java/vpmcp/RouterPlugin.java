@@ -20,7 +20,10 @@ import vpmcp.tools.NeighborhoodTool;
 import vpmcp.tools.PreviewBatchTool;
 import vpmcp.tools.SaveProjectTool;
 import vpmcp.tools.ListDiagramsTool;
+import vpmcp.tools.ListChangesTool;
 import vpmcp.tools.ListModelsTool;
+import vpmcp.tools.RevertBatchTool;
+import vpmcp.journal.ChangeJournal;
 import vpmcp.tools.OpenDiagramTool;
 import vpmcp.vp.BackupManager;
 import vpmcp.vp.EdtToolInvoker;
@@ -62,6 +65,8 @@ public final class RouterPlugin implements VPPlugin {
                 VpLog.info("Schema guard: " + guard.get("warning").getAsString());
             }
             TypeTiers tiers = TypeTiers.load(pluginDir, SCHEMA_VERSION);
+            BackupManager backups = BackupManager.load(pluginDir);
+            ChangeJournal journal = ChangeJournal.load(pluginDir);
             McpToolRegistry registry = new McpToolRegistry()
                     .register(new CapabilitiesTool(VERSION, SCHEMA_VERSION))
                     .register(new ListDiagramsTool())
@@ -69,7 +74,9 @@ public final class RouterPlugin implements VPPlugin {
                     .register(new GetModelTool())
                     .register(new ExportImageTool())
                     .register(new PreviewBatchTool(tiers))
-                    .register(new ApplyBatchTool(tiers, BackupManager.load(pluginDir)))
+                    .register(new ApplyBatchTool(tiers, backups, journal))
+                    .register(new ListChangesTool(journal))
+                    .register(new RevertBatchTool(journal, backups))
                     .register(new NeighborhoodTool())
                     .register(new SaveProjectTool())
                     .register(new GetDiagramByUrlTool())

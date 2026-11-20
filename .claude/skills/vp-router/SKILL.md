@@ -17,6 +17,10 @@ shapes and fields; this file is the workflow. It mirrors
    retry in a loop, and never launch or kill VP yourself.
 3. `schema_guard.match: false` is a warning, not a blocker: the pack still
    validates; reinstalling with `scripts\install-windows.ps1` regenerates it.
+4. If another skill or `CLAUDE.local.md` defines modelling conventions for
+   this project (a course, a team style guide), load it too. Its rules
+   override generic UML advice and `vp_lint_diagram` defaults; say so when
+   they differ.
 
 ## Reading
 
@@ -52,6 +56,11 @@ shapes and fields; this file is the workflow. It mirrors
    `container_note` work the same way.
 6. Mention the `backup` in the result the first time it is created
    (path), so the user knows their restore point.
+7. Keep the `batch_id` from the result. To undo a batch the user regrets,
+   run `vp_revert_batch` without `confirm` first, tell the user what will be
+   undone and what cannot be (`irreversible` deletions, `conflicts`), and
+   confirm only after they approve. `vp_list_changes` answers "what did you
+   change?".
 
 Field notes:
 - New use cases belong inside the System boundary: pass

@@ -39,6 +39,16 @@ public final class BatchApplier {
 
     /** Re-validates with the same tiers preview used, then executes. */
     public static JsonObject apply(IProject project, JsonArray ops, TypeTiers tiers) {
+        return apply(project, ops, tiers, null);
+    }
+
+    /**
+     * As {@link #apply(IProject, JsonArray, TypeTiers)}; when the batch fully
+     * succeeds, its compensations (in apply order) are handed to
+     * {@code undoSink} so the change journal can revert it later (ADR-0033).
+     */
+    public static JsonObject apply(IProject project, JsonArray ops, TypeTiers tiers,
+            List<Compensation> undoSink) {
         JsonObject validation = PlanValidator.validate(project, ops, tiers);
         JsonArray applied = new JsonArray();
         JsonArray compensated = new JsonArray();
@@ -61,6 +71,9 @@ public final class BatchApplier {
                 compensate(compensations, compensated);
                 break;
             }
+        }
+        if (errors.size() == 0 && undoSink != null) {
+            undoSink.addAll(compensations);
         }
         return result(!applied.isEmpty(), validation, applied, compensated, errors);
     }
@@ -1556,16 +1569,22 @@ public final class BatchApplier {
         }
     }
 
-    private static final class Compensation {
+    /** One undo step: reverses a single applied op. Deletions have none. */
+    public static final class Compensation {
         final String id;
         final Runnable action;
 
-        Compensation(String id, Runnable action) {
+        public Compensation(String id, Runnable action) {
             this.id = id;
             this.action = action;
         }
 
-        void run() {
+        /** The plan op id this step reverses. */
+        public String id() {
+            return id;
+        }
+
+        public void run() {
             action.run();
         }
     }

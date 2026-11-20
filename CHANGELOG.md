@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Change journal: every batch that changes the project gets a `batch_id`
+  and a line in `<plugin dir>/journal/<project>.jsonl`. `vp_list_changes`
+  lists them; `vp_revert_batch` (dry run, then `confirm: true`) undoes one
+  batch from the current VP session, refusing when a later batch touched
+  the same elements (ADR-0033).
+
 ## 0.17.0 — vp-mcp-router-revamped (first release)
 
 Revamp of [chramiq/vp-mcp-router](https://github.com/chramiq/vp-mcp-router)

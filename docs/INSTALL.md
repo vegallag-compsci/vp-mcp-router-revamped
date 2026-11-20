@@ -18,7 +18,7 @@ release zips):
 - **Source mode** (run from a checkout): `mvn package` first (unit tests
   included); `-SkipBuild` reuses `plugin\target\router.jar`.
 - Installs into `%APPDATA%\VisualParadigm\plugins\vp.router\`, keeping
-  `mcp.properties`, `backups\` and the log.
+  `mcp.properties`, `backups\`, `journal\` and the log.
 - Refuses while Visual Paradigm is running, and while the original
   read-only Avernus plugin (`plugins\vpmcp.server`) is still active (both
   use port 8899).
@@ -80,6 +80,8 @@ Optional `plugins/vp.router/mcp.properties`:
 | `backup` | `true` | Copy the `.vpp` before writes |
 | `backup_dir` | `<plugin dir>/backups` | Where copies go (`<dir>/<project>/<project>-<stamp>.vpp`) |
 | `backup_keep` | `20` | Copies kept per project, oldest pruned |
+| `journal` | `true` | Write the change journal to disk (`false`: memory only; revert still works) |
+| `journal_dir` | `<plugin dir>/journal` | Where `<project>.jsonl` journals go |
 
 ## Schema pack version
 
@@ -108,8 +110,8 @@ VP must be running with a project open before the agent calls any tool.
 
 ## Uninstall
 
-Close VP, delete `plugins/vp.router/` (move `backups/` out first if you
-want to keep them), and restart Visual Paradigm.
+Close VP, delete `plugins/vp.router/` (move `backups/` and `journal/` out
+first if you want to keep them), and restart Visual Paradigm.
 
 ## Debugging
 

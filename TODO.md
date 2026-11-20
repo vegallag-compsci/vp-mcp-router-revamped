@@ -7,8 +7,6 @@ against live VP before code (AGENTS.md).
 
 - `vp_layout`: trigger VP's built-in layouts (`DiagramManager.layout`,
   `LAYOUT_HIERARCHIC`, `LAYOUT_ORTHOGONAL`, ...) on a diagram or selection.
-- Change journal: persist each applied batch's undo plan;
-  `vp_list_changes` and `vp_revert_batch`.
 - Text export (PlantUML / Mermaid / JSON) so model changes diff in git.
 - Lint auto-fix suggestions: emit a ready `vp_preview_batch` op list per
   finding.

@@ -6,9 +6,12 @@ import com.google.gson.JsonParser;
 import com.vp.plugin.model.IProject;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import vpmcp.core.McpTool;
 import vpmcp.core.McpToolException;
 import vpmcp.core.ToolDefinition;
+import vpmcp.journal.ChangeJournal;
 import vpmcp.vp.BackupManager;
 import vpmcp.vp.DiagramLocator;
 import vpmcp.write.BatchApplier;
@@ -28,7 +31,9 @@ public final class ApplyBatchTool implements McpTool {
             + "{\"confirm\": true} alongside \"ops\". The project is NOT "
             + "saved; persist it with vp_save_project {\"confirm\": true}. Before the first "
             + "write after each save, the .vpp as last saved is copied to a backup folder; "
-            + "the result's \"backup\" reports the copy (restore by opening it in VP).";
+            + "the result's \"backup\" reports the copy (restore by opening it in VP). Every "
+            + "batch that changed the project is journaled; the result's \"batch_id\" names it "
+            + "for vp_list_changes and vp_revert_batch.";
 
     private static final String INPUT_SCHEMA =
             "{\"type\":\"object\","
@@ -41,6 +46,7 @@ public final class ApplyBatchTool implements McpTool {
             JsonParser.parseString(INPUT_SCHEMA).getAsJsonObject());
     private final TypeTiers tiers;
     private final BackupManager backups;
+    private final ChangeJournal journal;
 
     /** Verified-only tiers, no backups: the pre-pack behavior, for dev servers and tests. */
     public ApplyBatchTool() {
@@ -52,8 +58,13 @@ public final class ApplyBatchTool implements McpTool {
     }
 
     public ApplyBatchTool(TypeTiers tiers, BackupManager backups) {
+        this(tiers, backups, ChangeJournal.inMemory());
+    }
+
+    public ApplyBatchTool(TypeTiers tiers, BackupManager backups, ChangeJournal journal) {
         this.tiers = tiers;
         this.backups = backups;
+        this.journal = journal;
     }
 
     @Override
@@ -84,14 +95,23 @@ public final class ApplyBatchTool implements McpTool {
                         + "mcp.properties to write without a restore point.");
             }
         }
-        JsonObject result = BatchApplier.apply(project, ops.getAsJsonArray(), tiers);
+        List<BatchApplier.Compensation> undo = new ArrayList<>();
+        JsonObject result = BatchApplier.apply(project, ops.getAsJsonArray(), tiers, undo);
         if (backup != null) {
             result.add("backup", backup);
+        }
+        if (result.get("mutated").getAsBoolean()) {
+            JsonObject record = journal.recordBatch(ChangeJournal.projectKey(project), project,
+                    ops.getAsJsonArray(), result, undo);
+            result.add("batch_id", record.get("batch_id"));
+            if (record.has("journal_warning")) {
+                result.add("journal_warning", record.get("journal_warning"));
+            }
         }
         return result;
     }
 
-    private static File projectFile(IProject project) {
+    static File projectFile(IProject project) {
         try {
             return project.getProjectFile();
         } catch (RuntimeException unreadable) {

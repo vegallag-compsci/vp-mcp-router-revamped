@@ -76,5 +76,9 @@ Never auto-saved. After clean batches offer `vp_save_project`
 (`confirm: true`) and report the file path. Apply copies the `.vpp` as
 last saved before the first write after each save (`backup` in the
 result; `backup`/`backup_dir`/`backup_keep` in `mcp.properties`).
+Each applied batch gets a `batch_id`. To undo one, dry-run
+`vp_revert_batch` (no `confirm`), explain undo steps, `irreversible`
+deletions and `conflicts`, then confirm on approval. `vp_list_changes`
+lists what was changed.
 New elements go inside a boundary with `create_element.container`;
 `update_element.tagged_values` merges tags by name (null removes).
