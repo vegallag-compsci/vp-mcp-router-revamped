@@ -168,6 +168,28 @@ class LayoutLinterTest {
     }
 
     @Test
+    void lineLabelsBesideTheirOwnLineAreFineSwappedOnesAreMisplaced() {
+        Graph g = new Graph();
+        g.node("a", "UseCase", "A", 0, 0, 120, 40, null);
+        g.node("b", "UseCase", "B", 0, 60, 120, 40, null);
+        g.node("c", "UseCase", "C", 300, 0, 120, 40, null);
+        g.node("d", "UseCase", "D", 300, 60, 120, 40, null);
+        g.edge("ab", "Include", "a", "b");
+        g.edge("cd", "Include", "c", "d");
+        g.path("ab", 60, 40, 60, 60);
+        g.path("cd", 360, 40, 360, 60);
+        g.edgeCaption("ab", 64, 43, 80, 15);        // just right of its own line
+        g.edgeCaption("cd", 364, 43, 80, 15);
+
+        assertEquals(List.of(), idsFor(lint(g), "label_misplaced"));
+
+        g.edgeCaption("ab", 364, 43, 80, 15);       // labels swapped: each beside the other line
+        g.edgeCaption("cd", 64, 43, 80, 15);
+
+        assertEquals(List.of("ab", "cd"), idsFor(lint(g), "label_misplaced"));
+    }
+
+    @Test
     void swimlanePartsDoNotOverlapTheNodesTheyFrame() {
         Graph g = new Graph();
         g.node("lane", "ActivitySwimlane2", "Lanes", 0, 0, 400, 300, null, "hdr", "cmp", "act");
@@ -268,6 +290,32 @@ class LayoutLinterTest {
             find(id).add("visual_properties", JsonParser.parseString(
                     "{\"caption\":{\"side\":\"south\",\"bounds\":{\"x\":" + x + ",\"y\":" + y + ",\"width\":" + w
                             + ",\"height\":" + h + "}}}"));
+        }
+
+        private JsonObject findEdge(String id) {
+            for (JsonElement e : edges) {
+                if (id.equals(e.getAsJsonObject().get("id").getAsString())) {
+                    return e.getAsJsonObject();
+                }
+            }
+            throw new AssertionError(id);
+        }
+
+        void path(String id, int... xy) {
+            JsonArray points = new JsonArray();
+            for (int i = 0; i + 1 < xy.length; i += 2) {
+                JsonObject p = new JsonObject();
+                p.addProperty("x", xy[i]);
+                p.addProperty("y", xy[i + 1]);
+                points.add(p);
+            }
+            findEdge(id).add("waypoints", points);
+        }
+
+        void edgeCaption(String id, int x, int y, int w, int h) {
+            findEdge(id).add("visual_properties", JsonParser.parseString(
+                    "{\"caption\":{\"is_visible\":true,\"side\":\"none\",\"bounds\":{\"x\":" + x + ",\"y\":" + y
+                            + ",\"width\":" + w + ",\"height\":" + h + "}}}"));
         }
 
         JsonObject build() {

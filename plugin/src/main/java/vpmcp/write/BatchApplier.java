@@ -114,6 +114,8 @@ public final class BatchApplier {
                 return createRaw(state, op, id, compensations);
             case "move_element":
                 return moveElement(state, op, id, compensations);
+            case "route_connector":
+                return routeConnector(state, op, id, compensations);
             case "show_element":
                 return showElement(state, op, id, compensations);
             case "delete_model":
@@ -1259,13 +1261,79 @@ public final class BatchApplier {
         int oy = view.getY();
         int ow = view.getWidth();
         int oh = view.getHeight();
-        view.setBounds(number(op, "x", ox), number(op, "y", oy), number(op, "width", ow),
-                number(op, "height", oh));
-        compensations.add(new Compensation(id, () -> view.setBounds(ox, oy, ow, oh)));
+        int nx = number(op, "x", ox);
+        int ny = number(op, "y", oy);
+        int nw = number(op, "width", ow);
+        view.setBounds(nx, ny, nw, number(op, "height", oh));
+        // An actor's name is drawn from absolute caption bounds that do not
+        // follow the shape (live probe, ADR-0039): carry it along, keeping its
+        // measured width, centred under the actor's new position.
+        int[] oldCaption = null;
+        if (endpoint.model != null && "Actor".equals(endpoint.model.getModelType())) {
+            ICaptionUIModel caption = view.getCaptionUIModel();
+            if (caption != null && caption.getWidth() > 0) {
+                oldCaption = new int[] {caption.getX(), caption.getY(), caption.getWidth(), caption.getHeight()};
+                int cw = caption.getWidth();
+                caption.setBounds(nx + (nw - cw) / 2, ny + view.getHeight(), cw, caption.getHeight());
+            }
+        }
+        final int[] captionBefore = oldCaption;
+        compensations.add(new Compensation(id, () -> {
+            view.setBounds(ox, oy, ow, oh);
+            if (captionBefore != null) {
+                view.getCaptionUIModel().setBounds(captionBefore[0], captionBefore[1], captionBefore[2],
+                        captionBefore[3]);
+            }
+        }));
+        reattachStraightLines(view, id, compensations);
         state.views.put(id, view);
         state.models.put(id, endpoint.model);
         VpLog.info("APPLY move_element id=" + id + " vp_id=" + view.getId());
         return appliedEntry(id, "move", view.getId(), endpoint.model.getName());
+    }
+
+    /**
+     * VP keeps a line's stored end points when a shape moves, so a moved
+     * actor's association ends in mid-air (live scratch run 2026-11-20). Straight
+     * two-point lines attached to the moved shape are redrawn edge to edge
+     * between the two shapes' borders; bent lines are left for route_connector.
+     * Compensation restores the old points.
+     */
+    private static void reattachStraightLines(IDiagramElement view, String id, List<Compensation> compensations) {
+        if (!(view instanceof IShapeUIModel)) {
+            return;
+        }
+        java.util.Set<IConnectorUIModel> lines = new java.util.LinkedHashSet<>();
+        IConnectorUIModel[] from = view.toFromConnectorArray();
+        IConnectorUIModel[] to = view.toToConnectorArray();
+        if (from != null) {
+            lines.addAll(java.util.Arrays.asList(from));
+        }
+        if (to != null) {
+            lines.addAll(java.util.Arrays.asList(to));
+        }
+        for (IConnectorUIModel line : lines) {
+            java.awt.Point[] points = line.getPoints();
+            IShapeUIModel a = line.getFromShape();
+            IShapeUIModel b = line.getToShape();
+            if (points == null || points.length != 2 || a == null || b == null || a == b) {
+                continue;
+            }
+            int[] ra = {a.getX(), a.getY(), a.getWidth(), a.getHeight()};
+            int[] rb = {b.getX(), b.getY(), b.getWidth(), b.getHeight()};
+            int[] pa = vpmcp.layout.UseCaseStrategy.border(ra, isEllipse(a),
+                    new int[] {rb[0] + rb[2] / 2, rb[1] + rb[3] / 2});
+            int[] pb = vpmcp.layout.UseCaseStrategy.border(rb, isEllipse(b),
+                    new int[] {ra[0] + ra[2] / 2, ra[1] + ra[3] / 2});
+            java.awt.Point[] saved = points.clone();
+            setPoints(line, new java.awt.Point[] {new java.awt.Point(pa[0], pa[1]), new java.awt.Point(pb[0], pb[1])});
+            compensations.add(new Compensation(id, () -> setPoints(line, saved)));
+        }
+    }
+
+    private static boolean isEllipse(IShapeUIModel shape) {
+        IModelElement model = shape.getModelElement();
+        return model != null && "UseCase".equals(model.getModelType());
     }
 
     /**
@@ -1479,6 +1547,57 @@ public final class BatchApplier {
             }
         }
         throw new IllegalStateException("Diagram reference no longer resolves; re-run preview.");
+    }
+
+    /**
+     * Replaces a connector's path (ADR-0039). Moving shapes leaves connector
+     * waypoints where they were, so a tidy re-routes every line it touches.
+     * Compensation restores the previous points.
+     */
+    private static JsonObject routeConnector(State state, JsonObject op, String id,
+            List<Compensation> compensations) {
+        Endpoint endpoint = requireEndpoint(state, op.get("element"));
+        if (!(endpoint.view instanceof IConnectorUIModel)) {
+            throw new IllegalStateException("route_connector target is not a connector.");
+        }
+        IConnectorUIModel connector = (IConnectorUIModel) endpoint.view;
+        java.awt.Point[] before = connector.getPoints();
+        java.awt.Point[] saved = before == null ? new java.awt.Point[0] : before.clone();
+        setPoints(connector, toPointArray(op.get("points")));
+        compensations.add(new Compensation(id, () -> setPoints(connector, saved)));
+        // A connector's label is drawn from absolute caption bounds that do not
+        // follow a new path (live WashWatch run: «include»/«extend» labels stayed
+        // behind and sat beside the wrong lines).
+        JsonElement label = op.get("label");
+        ICaptionUIModel caption = connector.getCaptionUIModel();
+        JsonObject labelOut = null;
+        if (label != null && label.isJsonObject() && caption != null) {
+            JsonObject box = label.getAsJsonObject();
+            int[] old = {caption.getX(), caption.getY(), caption.getWidth(), caption.getHeight()};
+            caption.setBounds(box.get("x").getAsInt(), box.get("y").getAsInt(),
+                    number(box, "width", old[2]), number(box, "height", old[3]));
+            compensations.add(new Compensation(id, () -> caption.setBounds(old[0], old[1], old[2], old[3])));
+            labelOut = new JsonObject();
+            labelOut.addProperty("x", caption.getX());
+            labelOut.addProperty("y", caption.getY());
+            labelOut.addProperty("width", caption.getWidth());
+            labelOut.addProperty("height", caption.getHeight());
+        }
+        VpLog.info("APPLY route_connector id=" + id + " vp_id=" + connector.getId());
+        JsonObject entry = appliedEntry(id, "route", connector.getId(),
+                endpoint.model == null ? null : endpoint.model.getName());
+        entry.addProperty("points", connector.getPoints() == null ? 0 : connector.getPoints().length);
+        if (labelOut != null) {
+            entry.add("label", labelOut);
+        }
+        return entry;
+    }
+
+    private static void setPoints(IConnectorUIModel connector, java.awt.Point[] points) {
+        connector.clearPoints();
+        for (java.awt.Point point : points) {
+            connector.addPoint(new java.awt.Point(point));
+        }
     }
 
     private static Endpoint requireEndpoint(State state, JsonElement reference) {

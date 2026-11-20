@@ -33,7 +33,10 @@ public final class TypeTiers {
                 "InteractionDiagram", "DeploymentDiagram"));
         this.verifiedElements = new HashSet<>(java.util.Arrays.asList("Actor", "UseCase",
                 "Class", "Activity", "InitialNode", "DecisionNode", "ActivityFinalNode",
-                "State2", "DBTable", "Component", "Node", "LifeLine"));
+                "State2", "DBTable", "Component", "Node", "LifeLine",
+                // System boundary: created, nested into and read back in every live
+                // use case run since ADR-0039.
+                "System"));
         this.verifiedMembers =
                 new HashSet<>(java.util.Arrays.asList("Attribute", "Operation", "DBColumn"));
         this.verifiedRelationships = new HashSet<>(java.util.Arrays.asList("Association",

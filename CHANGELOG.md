@@ -20,11 +20,33 @@
   diagram font, 12 layout rules (`off_grid`, `name_wraps`, `line_crossing`,
   `misaligned`, `container_slack`, ...) and a 0-100 `layout.score` in
   `vp_lint_diagram`.
+- `vp_plan_layout` (ADR-0039): plans a tidy of a use case diagram by
+  meaning: actor sides (course rule), number order, columns, fitted
+  sizes, boundary, edge-to-edge lines with their labels. It returns
+  ordinary ops plus the score now and predicted.
+- Batch op `route_connector {element, points, label?}`: sets a line's
+  whole path and moves its label.
+- Lint rule `label_misplaced`: a line's label away from its own line.
+
+### Changed
+
+- `move_element` carries an actor's name along and redraws straight lines
+  attached to the moved shape. Undo restores both.
+- `System` is a verified element type.
+- «extend» follows VP's own convention: `from` is the base use case,
+  where VP draws the arrowhead and extension point. PlantUML and Mermaid
+  export now draw the UML arrow from the extension to the base.
 
 ### Fixed
 
 - `vp_lint_diagram` no longer fails on diagrams with swimlanes, and no
   longer reports nodes as overlapping the lane they sit in.
+- `vp_list_models` no longer lists relationships twice.
+- `vp_export_image` says when a diagram is empty.
+- A batch whose ids all fail to resolve gets a `hint` naming the open
+  project (a project switch since preview).
+- The `vp_revert_batch` dry run lists `also_removed`: views added to a
+  diagram the batch created.
 
 ## 0.17.0 — vp-mcp-router-revamped (first release)
 

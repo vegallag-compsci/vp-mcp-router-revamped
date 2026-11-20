@@ -56,6 +56,9 @@ use case out of it.
   Node/LifeLine elements; Association/Include/Extend/Generalization/
   Dependency/Message/Transition2 relationships; Attribute/Operation/
   DBColumn members) behave exactly as documented.
+- «extend» goes `from` the base (extended) use case `to` the extending
+  one: VP draws the arrowhead and the extension point at the `from` end.
+  «include» goes `from` the including use case `to` the included one.
 - Anything else from the schema pack validates but is flagged
   `unverified` in the plan — VP may veto silently or misplace, so
   read the result back after applying. Check `vp://schemas` resources

@@ -40,3 +40,4 @@
 | [0036](0036-layout-engine-facts.md) | VP geometry facts for the layout engine | accepted |
 | [0037](0037-beyond-the-api.md) | Reaching what the public API cannot build | accepted |
 | [0038](0038-style-profile-and-layout-lint.md) | Style profile, layout lint and layout score | accepted |
+| [0039](0039-use-case-strategy.md) | Use case layout strategy, vp_plan_layout and route_connector | accepted |

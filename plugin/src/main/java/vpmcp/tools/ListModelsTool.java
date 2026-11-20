@@ -53,19 +53,22 @@ public final class ListModelsTool implements McpTool {
         IModelElement[] models = project.toAllLevelModelElementArray();
 
         JsonArray list = new JsonArray();
+        // Relationships appear both in the all-level array and as children of
+        // their ModelRelationshipContainer (live: one Extend listed twice).
+        java.util.Set<String> seen = new java.util.HashSet<>();
         if (models != null) {
             for (IModelElement model : models) {
                 if (model == null) {
                     continue;
                 }
-                addEntry(list, model, filter);
+                addEntry(list, model, filter, seen);
                 // Members (attributes, operations, columns) are not in the
                 // project arrays; they hang off their parent's child index.
                 IModelElement[] children = model.toChildArray();
                 if (children != null) {
                     for (IModelElement child : children) {
                         if (child != null) {
-                            addEntry(list, child, filter);
+                            addEntry(list, child, filter, seen);
                         }
                     }
                 }
@@ -79,9 +82,9 @@ public final class ListModelsTool implements McpTool {
         return result;
     }
 
-    private static void addEntry(JsonArray list, IModelElement model, String filter) {
+    private static void addEntry(JsonArray list, IModelElement model, String filter, java.util.Set<String> seen) {
         String modelType = model.getModelType();
-        if (filter != null && !filter.equals(modelType)) {
+        if (filter != null && !filter.equals(modelType) || !seen.add(String.valueOf(model.getId()))) {
             return;
         }
         JsonObject entry = new JsonObject();

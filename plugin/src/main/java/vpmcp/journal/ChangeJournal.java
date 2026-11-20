@@ -206,6 +206,32 @@ public final class ChangeJournal {
     }
 
     /**
+     * Diagrams this batch created, each with every view and model id the batch
+     * itself made, so a caller can spot content added by hand since: reverting
+     * deletes the whole diagram, hand-added views included.
+     */
+    public synchronized Map<String, java.util.Set<String>> createdDiagrams(String batchId) {
+        Map<String, java.util.Set<String>> out = new java.util.LinkedHashMap<>();
+        Entry entry = entries.get(batchId);
+        if (entry == null || !entry.record.has("applied")) {
+            return out;
+        }
+        java.util.Set<String> made = new java.util.HashSet<>();
+        for (JsonElement item : entry.record.getAsJsonArray("applied")) {
+            JsonObject applied = item.getAsJsonObject();
+            for (String field : new String[] {"vp_id", "view_id"}) {
+                if (applied.has(field) && applied.get(field).isJsonPrimitive()) {
+                    made.add(applied.get(field).getAsString());
+                }
+            }
+            if ("diagram".equals(applied.has("kind") ? applied.get("kind").getAsString() : null)) {
+                out.put(applied.get("vp_id").getAsString(), made);
+            }
+        }
+        return out;
+    }
+
+    /**
      * Runs the batch's undo steps in reverse. Throws IllegalStateException
      * (nothing touched) when {@link #planRevert} would not allow it.
      */

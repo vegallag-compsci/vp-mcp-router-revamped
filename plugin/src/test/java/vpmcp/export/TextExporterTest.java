@@ -123,6 +123,19 @@ class TextExporterTest {
     }
 
     @Test
+    void extendArrowsRunFromTheExtensionToTheBaseVpStoresAsFrom() {
+        // VP keeps «extend» from = base (arrowhead + extension point there); E4 is U3 (base) → U2.
+        for (Format format : new Format[] {Format.PLANTUML, Format.MERMAID}) {
+            String text = TextExporter.export(useCases().root, format);
+            String line = text.lines().filter(l -> l.contains("<<extend>>")).findFirst().orElseThrow();
+            String include = text.lines().filter(l -> l.contains("<<include>>")).findFirst().orElseThrow();
+            assertTrue(line.trim().startsWith("UC_02"), format + ": " + line);
+            assertTrue(line.indexOf("UC_03") > line.indexOf("UC_02"), format + ": " + line);
+            assertTrue(include.trim().startsWith("UC_02"), format + " include keeps VP order: " + include);
+        }
+    }
+
+    @Test
     void containerChildrenAreNestedInsideTheBoundary() {
         String text = TextExporter.export(useCases().root, Format.PLANTUML);
         int open = text.indexOf("rectangle \"WashWatch\"");

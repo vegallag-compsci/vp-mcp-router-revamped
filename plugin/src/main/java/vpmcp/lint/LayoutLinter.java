@@ -27,7 +27,7 @@ public final class LayoutLinter {
     public static final Set<String> LAYOUT_RULES = Set.of(
             "overlap", "crowded", "outside_container", "off_grid", "inconsistent_size",
             "name_truncated", "name_wraps", "line_crossing", "line_through_shape", "label_overlap",
-            "misaligned", "uneven_spacing", "actor_wrong_side", "boundary_padding", "container_slack");
+            "label_misplaced", "misaligned", "uneven_spacing", "actor_wrong_side", "boundary_padding", "container_slack");
 
     private static final Set<String> CONTAINER_TYPES = Set.of("System", "Package", "ActivitySwimlane2");
     private static final Set<String> PART_SHAPES = Set.of("ActivityPartitionHeader", "ActivitySwimlane2Compartment");
@@ -67,6 +67,7 @@ public final class LayoutLinter {
         linter.names();
         linter.lines();
         linter.labels();
+        linter.connectorLabels();
         linter.alignment();
         linter.actorSides();
         linter.padding();
@@ -205,6 +206,62 @@ public final class LayoutLinter {
                 }
             }
         }
+    }
+
+    /** A line's label further than this from its own line reads as belonging to nothing. */
+    static final int LABEL_REACH = 20;
+
+    /**
+     * Connector labels that sit away from their own line, or nearer another
+     * line than their own (live WashWatch run: after a re-route the «include»
+     * and «extend» labels each sat beside the other's line).
+     */
+    private void connectorLabels() {
+        List<List<int[]>> paths = new ArrayList<>();
+        for (JsonObject edge : edges) {
+            paths.add(path(edge));
+        }
+        for (int i = 0; i < edges.size(); i++) {
+            int[] box = edgeCaptionBox(edges.get(i));
+            List<int[]> own = paths.get(i);
+            if (box == null || own == null) {
+                continue;
+            }
+            double mine = Geometry.boxToPolyline(box, own);
+            JsonObject nearer = null;
+            for (int j = 0; j < edges.size() && nearer == null; j++) {
+                if (j != i && paths.get(j) != null && Geometry.boxToPolyline(box, paths.get(j)) + 5 < mine) {
+                    nearer = edges.get(j);
+                }
+            }
+            if (mine > LABEL_REACH || nearer != null) {
+                String what = label(edges.get(i));
+                add("label_misplaced", "warning", "The label of the " + what + " connector "
+                        + (nearer != null ? "sits nearer the " + label(nearer) + " connector."
+                                : "sits " + (int) mine + "px away from its line."),
+                        "Move the label next to its own line (route_connector label).", edgeRef(edges.get(i)));
+            }
+        }
+    }
+
+    /** Absolute caption box of a connector that shows text; null otherwise. */
+    private static int[] edgeCaptionBox(JsonObject edge) {
+        JsonElement visual = edge.get("visual_properties");
+        if (visual == null || !visual.isJsonObject()) {
+            return null;
+        }
+        JsonElement caption = visual.getAsJsonObject().get("caption");
+        if (caption == null || !caption.isJsonObject() || !caption.getAsJsonObject().has("bounds")) {
+            return null;
+        }
+        JsonObject c = caption.getAsJsonObject();
+        JsonElement visible = c.get("is_visible");
+        if (visible != null && visible.isJsonPrimitive() && !visible.getAsBoolean()) {
+            return null;
+        }
+        JsonObject b = c.getAsJsonObject("bounds");
+        int[] r = {b.get("x").getAsInt(), b.get("y").getAsInt(), b.get("width").getAsInt(), b.get("height").getAsInt()};
+        return r[2] > 0 && r[3] > 0 ? r : null;
     }
 
     private void labels() {

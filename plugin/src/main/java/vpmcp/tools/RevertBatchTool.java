@@ -1,5 +1,6 @@
 package vpmcp.tools;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -24,7 +25,8 @@ public final class RevertBatchTool implements McpTool {
             + "as long as no later standing batch touched the same elements (revert those first, "
             + "newest first). \"batch_id\" defaults to the latest batch not yet reverted. Without "
             + "{\"confirm\": true} this is a dry run: it returns allowed, reason, conflicts, "
-            + "undo_steps and irreversible (deletions are final and are never restored). With "
+            + "undo_steps, irreversible (deletions are final and are never restored) and also_removed "
+            + "(views added after the batch to a diagram it created, which go with that diagram). With "
             + "confirm it runs the undo steps in reverse and reports each step. Hand edits made in "
             + "VP after the batch may be overwritten by restored values. The project is NOT saved.";
 
@@ -49,6 +51,32 @@ public final class RevertBatchTool implements McpTool {
         return definition;
     }
 
+    /** Views on batch-created diagrams that the batch did not make. */
+    public static JsonArray handAddedContent(IProject project,
+            java.util.Map<String, java.util.Set<String>> created) {
+        JsonArray out = new JsonArray();
+        for (java.util.Map.Entry<String, java.util.Set<String>> diagram : created.entrySet()) {
+            com.vp.plugin.diagram.IDiagramUIModel live = project.getDiagramById(diagram.getKey());
+            com.vp.plugin.diagram.IDiagramElement[] views = live == null ? null : live.toDiagramElementArray();
+            if (views == null) {
+                continue;
+            }
+            for (com.vp.plugin.diagram.IDiagramElement view : views) {
+                if (view == null || diagram.getValue().contains(view.getId())) {
+                    continue;
+                }
+                JsonObject item = new JsonObject();
+                item.addProperty("view_id", view.getId());
+                com.vp.plugin.model.IModelElement model = view.getModelElement();
+                item.addProperty("name", model == null ? null : model.getName());
+                item.addProperty("model_type", model == null ? null : model.getModelType());
+                item.addProperty("diagram", live.getName());
+                out.add(item);
+            }
+        }
+        return out;
+    }
+
     @Override
     public JsonObject execute(JsonObject params) throws McpToolException {
         JsonElement confirmValue = params.get("confirm");
@@ -70,6 +98,15 @@ public final class RevertBatchTool implements McpTool {
                     + "vp_list_changes shows the history.");
         }
         JsonObject plan = journal.planRevert(key, project, batchId);
+        JsonArray handAdded = handAddedContent(project, journal.createdDiagrams(batchId));
+        if (handAdded.size() > 0) {
+            // Live 2026-11-20: reverting a test batch deleted its diagram and, with it,
+            // two use cases the operator had drawn there by hand, without a word.
+            plan.add("also_removed", handAdded);
+            plan.addProperty("warning", handAdded.size() + " element(s) on diagrams this batch created "
+                    + "were added afterwards (by hand or by later batches); reverting deletes those "
+                    + "diagrams with them. Their models stay in the project.");
+        }
         if (!confirm || !plan.get("allowed").getAsBoolean()) {
             plan.addProperty("dry_run", true);
             if (!confirm && plan.get("allowed").getAsBoolean()) {

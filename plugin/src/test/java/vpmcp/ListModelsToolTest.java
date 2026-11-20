@@ -68,6 +68,19 @@ class ListModelsToolTest {
         assertEquals("cls", indexedMember.get("parent_id").getAsString());
     }
 
+    @Test
+    void aRelationshipListedByVpAndByItsContainerAppearsOnce() {
+        IModelElement extend = VpFakes.model("ext", null, "Extend");
+        IModelElement container = VpFakes.modelWithChildren("box", "Extend", "ModelRelationshipContainer",
+                new IModelElement[] {extend});
+        IProject project = VpFakes.project("p", new IModelElement[] {container, extend},
+                new com.vp.plugin.diagram.IDiagramUIModel[0]);
+
+        JsonObject result = ListModelsTool.index(project, "Extend");
+
+        assertEquals(1, result.get("count").getAsInt());
+    }
+
     private JsonObject entryById(JsonObject result, String id) {
         return result.getAsJsonArray("models").asList().stream()
                 .map(entry -> entry.getAsJsonObject())

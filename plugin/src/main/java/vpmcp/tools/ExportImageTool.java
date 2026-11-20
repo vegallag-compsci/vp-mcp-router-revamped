@@ -130,6 +130,12 @@ public final class ExportImageTool implements McpTool {
         if (crop != null) {
             summary += " Cropped to " + crop.width + "x" + crop.height + " at (" + crop.x + "," + crop.y + ").";
         }
+        IDiagramElement[] shown = diagram.toDiagramElementArray();
+        if (shown == null || shown.length == 0) {
+            // Live: an empty diagram rendered as a blank 72-byte image with no hint why.
+            summary += " The diagram is empty: nothing to draw.";
+            result.addProperty("empty", true);
+        }
         result.addProperty("summary", summary);
         result.addProperty("image_mime", "image/png");
         result.addProperty("image_data", Base64.getEncoder().encodeToString(png));

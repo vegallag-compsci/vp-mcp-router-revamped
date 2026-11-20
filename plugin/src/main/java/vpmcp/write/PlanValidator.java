@@ -23,7 +23,7 @@ public final class PlanValidator {
     private static final Set<String> OPS =
             new HashSet<>(Arrays.asList("create_diagram", "create_element", "connect",
                     "duplicate_diagram", "add_member", "update_element", "update_member",
-                    "style_element", "create_raw", "move_element", "show_element",
+                    "style_element", "create_raw", "move_element", "route_connector", "show_element",
                     "delete_model", "delete_diagram", "delete_element"));
 
     private static final Set<String> MULTIPLICITIES = new HashSet<>(Arrays.asList(
@@ -59,7 +59,33 @@ public final class PlanValidator {
             }
             validateOp(project, item.getAsJsonObject(), symbols, plan, errors, tiers);
         }
-        return result(errors.size() == 0, plan, errors);
+        JsonObject result = result(errors.size() == 0, plan, errors);
+        String hint = plan.size() == 0 ? unknownIdHint(project, errors) : null;
+        if (hint != null) {
+            result.addProperty("hint", hint);
+        }
+        return result;
+    }
+
+    /**
+     * When every reference fails, the likeliest cause is that the operator
+     * switched projects since the ids were read (live 2026-11-20: a batch built
+     * on wash-watch-temp was applied while probe-scratch was open).
+     */
+    static String unknownIdHint(IProject project, JsonArray errors) {
+        if (errors.size() == 0) {
+            return null;
+        }
+        for (JsonElement item : errors) {
+            String message = item.getAsJsonObject().get("message").getAsString();
+            if (!message.startsWith("Unknown")) {
+                return null;
+            }
+        }
+        String name = project == null ? null : project.getName();
+        return "No id in this batch resolves. The open project is '" + name
+                + "': if the ids came from another project, reopen that one in VP (vp_capabilities "
+                + "names the open project) and preview again.";
     }
 
     private static void validateOp(IProject project, JsonObject op, Map<String, String> symbols,
@@ -109,6 +135,9 @@ public final class PlanValidator {
                 break;
             case "move_element":
                 validateMoveElement(project, op, id, symbols, plan, errors);
+                break;
+            case "route_connector":
+                validateRouteConnector(project, op, id, symbols, plan, errors);
                 break;
             case "show_element":
                 validateShowElement(project, op, id, symbols, plan, errors);
@@ -676,6 +705,56 @@ public final class PlanValidator {
     private static boolean isNumber(JsonObject holder, String name) {
         JsonElement value = holder.get(name);
         return value != null && value.isJsonPrimitive() && value.getAsJsonPrimitive().isNumber();
+    }
+
+    /**
+     * route_connector {id, element, points}: replace a connector's path. The
+     * element is an existing connector view id or a plan ref to a connect op;
+     * points are absolute and span the whole path, end points included
+     * (ADR-0039).
+     */
+    private static void validateRouteConnector(IProject project, JsonObject op, String id,
+            Map<String, String> symbols, JsonArray plan, JsonArray errors) {
+        JsonElement reference = op.get("element");
+        String element = resolveRef(reference, symbols, "relationship");
+        if (element == null && reference != null && reference.isJsonPrimitive()) {
+            try {
+                Object view = project == null ? null : project.getDiagramElementById(reference.getAsString());
+                if (view instanceof com.vp.plugin.diagram.IConnectorUIModel) {
+                    element = reference.getAsString();
+                } else if (view != null) {
+                    errors.add(error(id, "route_connector needs a connector; '" + reference.getAsString()
+                            + "' is a shape (move it with move_element)."));
+                    return;
+                }
+            } catch (RuntimeException unknown) {
+                element = null;
+            }
+        }
+        if (element == null) {
+            errors.add(error(id, "Unknown connector reference; use a connector view id or a connect op ref."));
+            return;
+        }
+        JsonElement points = op.get("points");
+        if (points == null || points.isJsonNull()) {
+            errors.add(error(id, "route_connector needs \"points\": the full path, end points included."));
+            return;
+        }
+        String problem = pointsProblem(points);
+        JsonElement label = op.get("label");
+        boolean hasLabel = label != null && !label.isJsonNull();
+        if (problem == null && hasLabel && (!label.isJsonObject() || !isNumber(label.getAsJsonObject(), "x")
+                || !isNumber(label.getAsJsonObject(), "y"))) {
+            problem = "\"label\" must be {x, y, width?, height?} numbers: the label's absolute box.";
+        }
+        if (problem != null) {
+            errors.add(error(id, problem));
+            return;
+        }
+        symbols.put(id, "route");
+        plan.add(entry(id, "route_connector", "route '" + element + "' through "
+                + points.getAsJsonArray().size() + " points" + (hasLabel ? " and move its label" : ""),
+                hasLabel ? "restore its previous points and label" : "restore its previous points"));
     }
 
     private static void validateMoveElement(IProject project, JsonObject op, String id,

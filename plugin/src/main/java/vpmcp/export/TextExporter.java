@@ -205,8 +205,8 @@ public final class TextExporter {
                 plantNode(root, out, "");
             }
             for (JsonObject edge : edges) {
-                String from = alias.get(str(edge, "from"));
-                String to = alias.get(str(edge, "to"));
+                String from = alias.get(str(edge, arrowTail(edge)));
+                String to = alias.get(str(edge, arrowHead(edge)));
                 if (from == null || to == null) {
                     out.append("' skipped ").append(nz(str(edge, "model_type")))
                             .append(" with an end off this diagram\n");
@@ -276,6 +276,20 @@ public final class TextExporter {
                     }
                     out.append(indent).append("}\n");
             }
+        }
+
+        /**
+         * VP stores an «extend» from the extended (base) use case to the
+         * extending one, and draws the arrowhead and extension point at its
+         * from end (probed 2026-11-20 against a hand-drawn extend). UML text
+         * draws the arrow from the extension to the base, so «extend» ends swap.
+         */
+        private String arrowTail(JsonObject edge) {
+            return "Extend".equals(str(edge, "model_type")) ? "to" : "from";
+        }
+
+        private String arrowHead(JsonObject edge) {
+            return "Extend".equals(str(edge, "model_type")) ? "from" : "to";
         }
 
         private String plantArrow(JsonObject edge) {
@@ -385,8 +399,8 @@ public final class TextExporter {
                 mermaidNode(root, out, "  ");
             }
             for (JsonObject edge : edges) {
-                String from = alias.get(str(edge, "from"));
-                String to = alias.get(str(edge, "to"));
+                String from = alias.get(str(edge, arrowTail(edge)));
+                String to = alias.get(str(edge, arrowHead(edge)));
                 if (from == null || to == null) {
                     continue;
                 }

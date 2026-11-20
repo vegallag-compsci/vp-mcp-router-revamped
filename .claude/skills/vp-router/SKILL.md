@@ -85,10 +85,12 @@ Field notes:
   Level, Complexity, Use Case Status, Author, Assumptions) when the user
   wants them in the model.
 
-Relationship direction (as VP stores existing ones): «include» goes `from`
-the including (base) use case `to` the included one; «extend» goes `from`
-the extending use case `to` the extended (base) one. For actor–use case
-associations, put the actor in `from`.
+Relationship direction (probed against hand-drawn VP relationships):
+«include» goes `from` the including (base) use case `to` the included one.
+«extend» goes `from` the extended (base) use case `to` the extending one:
+VP draws the arrowhead and adds the extension point at the `from` end, so
+"UC-07 extends UC-02" is `from: UC-02, to: UC-07`. Check the PNG after
+connecting. For actor–use case associations, put the actor in `from`.
 
 ## Auto-layout
 

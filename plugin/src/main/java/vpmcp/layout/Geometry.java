@@ -106,6 +106,80 @@ public final class Geometry {
         return false;
     }
 
+    /** Shortest distance from a point to a polyline. */
+    public static double distanceToPolyline(int[] p, List<int[]> line) {
+        double best = Double.MAX_VALUE;
+        for (int i = 0; i + 1 < line.size(); i++) {
+            best = Math.min(best, distanceToSegment(p, line.get(i), line.get(i + 1)));
+        }
+        return best;
+    }
+
+    public static double distanceToSegment(int[] p, int[] a, int[] b) {
+        double dx = b[0] - a[0];
+        double dy = b[1] - a[1];
+        double len2 = dx * dx + dy * dy;
+        double t = len2 == 0 ? 0 : ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len2;
+        t = Math.max(0, Math.min(1, t));
+        double cx = a[0] + t * dx - p[0];
+        double cy = a[1] + t * dy - p[1];
+        return Math.sqrt(cx * cx + cy * cy);
+    }
+
+    /** Shortest distance between a box {x, y, w, h} and a polyline; 0 when the line touches it. */
+    public static double boxToPolyline(int[] box, List<int[]> line) {
+        int x0 = box[0];
+        int y0 = box[1];
+        int x1 = box[0] + box[2];
+        int y1 = box[1] + box[3];
+        for (int[] p : line) {
+            if (p[0] >= x0 && p[0] <= x1 && p[1] >= y0 && p[1] <= y1) {
+                return 0;
+            }
+        }
+        int[][] corners = {{x0, y0}, {x1, y0}, {x1, y1}, {x0, y1}};
+        double best = Double.MAX_VALUE;
+        for (int i = 0; i + 1 < line.size(); i++) {
+            for (int k = 0; k < 4; k++) {
+                if (segmentsCross(line.get(i), line.get(i + 1), corners[k], corners[(k + 1) % 4])) {
+                    return 0;
+                }
+                best = Math.min(best, distanceToSegment(corners[k], line.get(i), line.get(i + 1)));
+            }
+        }
+        for (int[] p : line) {
+            double dx = Math.max(Math.max(x0 - p[0], 0), p[0] - x1);
+            double dy = Math.max(Math.max(y0 - p[1], 0), p[1] - y1);
+            best = Math.min(best, Math.hypot(dx, dy));
+        }
+        return best;
+    }
+
+    /**
+     * Where a connector's label goes: at the middle of the path's longest
+     * segment, beside a vertical segment and above any other, {@code gap} px
+     * clear of the line. Returns {x, y, width, height}.
+     */
+    public static int[] labelBox(List<int[]> path, int width, int height, int gap) {
+        int best = 0;
+        double bestLen = -1;
+        for (int i = 0; i + 1 < path.size(); i++) {
+            double len = Math.hypot(path.get(i + 1)[0] - path.get(i)[0], path.get(i + 1)[1] - path.get(i)[1]);
+            if (len > bestLen) {
+                bestLen = len;
+                best = i;
+            }
+        }
+        int[] a = path.get(best);
+        int[] b = path.get(best + 1);
+        int mx = (a[0] + b[0]) / 2;
+        int my = (a[1] + b[1]) / 2;
+        if (a[0] == b[0]) {
+            return new int[] {mx + gap, my - height / 2, width, height};
+        }
+        return new int[] {mx - width / 2, my - height - gap, width, height};
+    }
+
     private static boolean inside(int[] p, int x0, int y0, int x1, int y1) {
         return p[0] > x0 && p[0] < x1 && p[1] > y0 && p[1] < y1;
     }

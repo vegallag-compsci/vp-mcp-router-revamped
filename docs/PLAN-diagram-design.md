@@ -6,7 +6,8 @@ result is previewed, backed up, journaled and undoable.
 
 Status: Phases 0 and 0b (probes) done (ADR-0036, ADR-0037); plan
 approved 2026-11-20. Phase 1 done (ADR-0038): WashWatch baseline
-layout score 65.
+layout score 65. Phase 2 done (ADR-0039): WashWatch tidied to 94-97 in
+one previewed batch, as predicted.
 
 ## Why the current tools are not enough
 
@@ -109,7 +110,7 @@ Deterministic: same model in, same layout out.
 ### 5. Layout lint and score
 
 New rules: `off_grid`, `inconsistent_size`, `misaligned`,
-`line_crossing`, `line_through_shape`, `label_overlap`, `name_truncated`
+`line_crossing`, `line_through_shape`, `label_overlap`, `label_misplaced`, `name_truncated`
 (name wider than its shape), `uneven_spacing`, `actor_wrong_side`,
 `outside_container`, `boundary_padding`; plus `layout_score` (0–100).
 
