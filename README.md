@@ -1,38 +1,140 @@
-# vp-mcp-router
+# vp-mcp-router-revamped
 
-MCP router for Visual Paradigm: an in-process plugin that serves the open
-project as JSON over Streamable HTTP, and writes back through previewed,
-compensable batches.
+An MCP server that runs **inside Visual Paradigm** and lets an AI agent
+(Claude Code, opencode, or any MCP client) read, review and edit the
+project you have open — safely.
 
-- **Reads** — diagrams, the model tree (including members), neighborhoods,
-  PNG/SVG/PDF export
-- **Writes** — create, connect, move, style, delete via
-  `vp_preview_batch` → `vp_apply_batch`; partial failures compensate in
-  reverse; saving is explicit and confirm-gated
-- **Schema packs** — versioned per VP minor, so VP updates ship as data,
-  not plugin rebuilds
+- **Reads** — diagrams with full formatting, the model tree (including
+  members), neighborhoods, PNG/SVG/PDF export, and **what you are looking
+  at**: the active diagram and your current selection.
+- **Review** — `vp_lint_diagram` flags unconnected actors and use cases,
+  shapes past their container, overlaps and crowding, duplicate names,
+  numbering gaps, bad include/extend ends and missing documentation, with
+  element ids ready for a fix.
+- **Writes** — create (optionally inside a container such as a System
+  boundary), connect, move, style, document, set tagged values, delete.
+  Every change is previewed (`vp_preview_batch`), applied only with
+  explicit confirmation (`vp_apply_batch`), rolled back in reverse on
+  partial failure, and preceded by an automatic `.vpp` backup. Nothing is
+  saved until you say so.
+- **Schema packs** — VP's type universe is versioned data per VP minor
+  (`schemas/v18.1/`), so a VP update means regenerating a pack, not
+  rewriting the plugin.
 
-Built for [opencode](https://opencode.ai): an agent reads and models
-UML/ERD diagrams in your locally running Visual Paradigm project.
+Tested on Visual Paradigm 18.1 (Windows and Linux). Java 11+ runtime (VP
+bundles one).
 
-## Quickstart
+## What's new in the revamp
+
+Built on [chramiq/vp-mcp-router](https://github.com/chramiq/vp-mcp-router):
+
+| Added | Why it matters |
+|---|---|
+| `vp_get_selection`, `vp_get_active_diagram` | "Fix these" works without pasting diagram links |
+| `vp_lint_diagram` | Consistent, structured reviews the agent can turn into a fix batch |
+| `update_element.tagged_values` | Fill in use case specs (Preconditions, Level, ...) in the model |
+| `create_element.container` | New use cases land inside the System boundary |
+| Automatic `.vpp` backups before writes | A restore point even for batches you regret |
+| Windows installer and release script, Claude Code skill | First-class Windows + Claude Code support |
+
+See [CHANGELOG.md](CHANGELOG.md) for details.
+
+## Install
+
+### Windows
+
+1. Download `vp-router-revamped-<version>.zip` from
+   [Releases](https://github.com/vegallag-compsci/vp-mcp-router-revamped/releases)
+   and unzip it.
+2. Close Visual Paradigm, then in the unzipped folder:
+
+   ```powershell
+   .\install-windows.ps1
+   ```
+
+   (From a source checkout: `.\scripts\install-windows.ps1` builds with
+   Maven first. Pass `-VpHome` if VP isn't in
+   `C:\Program Files\Visual Paradigm 18.1`.)
+
+### Linux / macOS
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/chramiq/vp-mcp-router/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/vegallag-compsci/vp-mcp-router-revamped/main/install.sh | bash
 ```
 
-One command, interactive: fetches the latest release, asks for your
-Visual Paradigm plugins directory, and wires up opencode.
+Interactive: asks for the VP plugins directory and schema pack, and can
+wire up opencode. Needs `bash`, `curl`, `unzip`, `python3`.
 
-Requires Visual Paradigm (tested on 18.1), Java 11+ and Maven.
-Full build/install/uninstall walkthrough: [docs/INSTALL.md](docs/INSTALL.md).
+### Check it
 
-## Docs
+Open Visual Paradigm with a project: **Tools → MCP Router** shows
+`running on port 8899`.
 
-- [docs/INSTALL.md](docs/INSTALL.md) — build, install, schema packs, HotSwap
-- [docs/INDEX.md](docs/INDEX.md) — architecture decision records
-- [AGENTS.md](AGENTS.md) — workflow and safety rules for coding agents
+Full build, manual install, configuration and uninstall:
+[docs/INSTALL.md](docs/INSTALL.md).
 
-## License
+## Connect your agent
 
-[MIT](LICENSE). Vendored MCP core attribution: [plugin/NOTICE.txt](plugin/NOTICE.txt).
+The server speaks MCP over Streamable HTTP at `http://127.0.0.1:8899/mcp`
+(loopback only).
+
+**Claude Code**
+
+```bash
+claude mcp add -s user --transport http visual-paradigm http://127.0.0.1:8899/mcp
+```
+
+For the modelling workflow, copy `claude-skills/vp-router` from the
+release zip (or `.claude/skills/vp-router` from a checkout) to
+`~/.claude/skills/`.
+
+**opencode** — merge [opencode/mcp.json](opencode/mcp.json) into your
+`opencode.json` and copy `opencode/skills/vp-router` to your skills folder
+(the Linux installer offers to do both).
+
+**Other MCP clients** — add a remote/HTTP MCP server pointing at the URL
+above.
+
+## Using it
+
+Ask in plain words, with the diagram open in Visual Paradigm:
+
+- "Review the diagram I have open."
+- "Connect the selected actor to these use cases."
+- "Add a use case *Pay Fine* inside the system boundary and document it."
+- "Fill in the preconditions for UC-04."
+
+The agent previews every batch and waits for your go-ahead. Tool
+descriptions are the contract; the skill
+([Claude Code](.claude/skills/vp-router/SKILL.md),
+[opencode](opencode/skills/vp-router/SKILL.md)) is the workflow.
+
+## Safety model
+
+- Loopback-only server, no auth: for single-user machines.
+- No write without `confirm: true`; preview first.
+- Creations and updates compensate in reverse on failure; deletions are
+  final and called out in the preview.
+- The `.vpp` is copied to `<plugin dir>\backups\<project>\` before writes
+  (`backup`, `backup_dir`, `backup_keep` in `mcp.properties`).
+- Never auto-saves; `vp_save_project` is confirm-gated.
+
+## Develop
+
+```bash
+cd plugin && mvn package     # builds router.jar and runs the unit tests (no VP needed)
+```
+
+Needs JDK 11+, Maven, and VP's `openapi.jar` (found automatically on
+Windows; pass `-Dvp.openApi=...` elsewhere). Agent and contributor rules:
+[AGENTS.md](AGENTS.md); design decisions: [docs/INDEX.md](docs/INDEX.md);
+roadmap: [TODO.md](TODO.md).
+
+## Credits and license
+
+[MIT](LICENSE). Revamp of
+[chramiq/vp-mcp-router](https://github.com/chramiq/vp-mcp-router), which
+vendors the MCP core from
+[Avernus Software's Visual Paradigm MCP plugin](https://github.com/avernussoftware/visualparadigmmcp).
+Attribution: [plugin/NOTICE.txt](plugin/NOTICE.txt). Not affiliated with
+Visual Paradigm International.

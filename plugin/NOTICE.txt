@@ -1,9 +1,16 @@
+vp-mcp-router-revamped
+https://github.com/vegallag-compsci/vp-mcp-router-revamped
+
+A revamp of vp-mcp-router (https://github.com/chramiq/vp-mcp-router,
+MIT, Copyright (c) 2026 chramiq), which in turn vendors code from the
+Avernus Software plugin noted below. Both licenses are MIT; see LICENSE.
+
 This project vendors source files from:
 
   https://github.com/avernussoftware/visualparadigmmcp
   commit 92baa57622d0fe7c88be5914d7a5e6c84b72f94c (v0.1.0)
 
-under `src/main/java/vpmcp/`, under the terms of the MIT License:
+under `plugin/src/main/java/vpmcp/` (core, vp, tools, ui), under the terms of the MIT License:
 
   Copyright (c) 2026 Avernus Software
 

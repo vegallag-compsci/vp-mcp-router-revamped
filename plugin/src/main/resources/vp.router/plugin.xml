@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plugin
     id="vp.router"
-    name="VP MCP Router"
-    description="Read-only Model Context Protocol router for the open project."
-    provider="vp-mcp-router"
+    name="VP MCP Router (Revamped)"
+    description="Model Context Protocol server for the open project: read, review and edit diagrams from an AI agent."
+    provider="vp-mcp-router-revamped"
     class="vpmcp.RouterPlugin">
   <runtime>
     <library path="lib/router.jar" relativePath="true"/>

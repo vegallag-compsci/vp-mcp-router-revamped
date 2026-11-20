@@ -4,7 +4,7 @@
 |---|---|---|
 | [0001](0001-router-shape.md) | Primitives + schema resources, zero-dep Java, read-only v1 | accepted |
 | [0002](0002-vendoring.md) | Vendor avernus sources as copy, keep package names | accepted |
-| [0003](0003-router-entry.md) | Router entry beside the vendored entry | accepted |
+| [0003](0003-router-entry.md) | Router entry beside the vendored entry | superseded by 0032 |
 | [0004](0004-resources.md) | Resources via provider boundary, files on disk | accepted |
 | [0005](0005-opencode.md) | opencode over remote HTTP, minimal skill | accepted |
 | [0006](0006-installer.md) | Installer script, always ask directories | accepted |
@@ -28,3 +28,9 @@
 | [0024](0024-keys-and-ends.md) | Keys and relationship ends (PK/unique, multiplicities, FKs) | accepted |
 | [0025](0025-open-diagram.md) | open_diagram (bring a diagram to the front) | accepted |
 | [0026](0026-association-aggregations.md) | Association aggregation fields | accepted |
+| [0027](0027-active-diagram-selection.md) | Active diagram and selection reads | accepted |
+| [0028](0028-tagged-values.md) | Tagged values on update_element | accepted |
+| [0029](0029-container.md) | create_element inside a container | accepted |
+| [0030](0030-lint.md) | vp_lint_diagram | accepted |
+| [0031](0031-backups.md) | Backup before writes | accepted |
+| [0032](0032-revamp.md) | Revamped fork: cleanup, Windows, attribution | accepted |

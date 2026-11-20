@@ -92,7 +92,8 @@ PLUGIN_XML="${INNER:-$REPO/plugin/src/main/resources/vp.router}/plugin.xml"
 if [ ! -f "$PLUGIN_XML" ]; then PLUGIN_XML="$REPO/plugin/src/main/resources/vp.router/plugin.xml"; fi
 run mkdir -p "$DEST/lib"
 run cp "$PLUGIN_XML" "$DEST/plugin.xml"
-run cp "$ROUTER_JAR" "$DEST/lib/router.jar"
+run cp "$ROUTER_JAR" "$DEST/lib/router.jar.new"
+run mv -f "$DEST/lib/router.jar.new" "$DEST/lib/router.jar"   # stage then swap: never write over a loaded jar
 run rm -rf "$DEST/schemas"
 run mkdir -p "$DEST/schemas"
 run cp -r "$SCHEMA_SRC/$SCHEMA_VERSION" "$DEST/schemas/$SCHEMA_VERSION"

@@ -11,7 +11,10 @@ import vpmcp.core.McpToolRegistry;
 import vpmcp.tools.ApplyBatchTool;
 import vpmcp.tools.CapabilitiesTool;
 import vpmcp.tools.ExportImageTool;
+import vpmcp.tools.GetActiveDiagramTool;
 import vpmcp.tools.GetDiagramByUrlTool;
+import vpmcp.tools.GetSelectionTool;
+import vpmcp.tools.LintDiagramTool;
 import vpmcp.tools.GetModelTool;
 import vpmcp.tools.NeighborhoodTool;
 import vpmcp.tools.PreviewBatchTool;
@@ -19,6 +22,7 @@ import vpmcp.tools.SaveProjectTool;
 import vpmcp.tools.ListDiagramsTool;
 import vpmcp.tools.ListModelsTool;
 import vpmcp.tools.OpenDiagramTool;
+import vpmcp.vp.BackupManager;
 import vpmcp.vp.EdtToolInvoker;
 import vpmcp.vp.FileResourceProvider;
 import vpmcp.vp.GuardStatus;
@@ -29,8 +33,9 @@ import vpmcp.vp.VpLog;
 import vpmcp.write.TypeTiers;
 
 /**
- * Router entry point. Mirrors the vendored plugin wiring but registers the
- * router toolset; vendored files stay untouched so upstream diffs stay clean.
+ * Plugin entry point (declared in plugin.xml). Starts the MCP endpoint with
+ * the full toolset when Visual Paradigm loads the plugin and stops it on
+ * unload. VERSION is set only by the release scripts.
  */
 public final class RouterPlugin implements VPPlugin {
 
@@ -64,11 +69,14 @@ public final class RouterPlugin implements VPPlugin {
                     .register(new GetModelTool())
                     .register(new ExportImageTool())
                     .register(new PreviewBatchTool(tiers))
-                    .register(new ApplyBatchTool(tiers))
+                    .register(new ApplyBatchTool(tiers, BackupManager.load(pluginDir)))
                     .register(new NeighborhoodTool())
                     .register(new SaveProjectTool())
                     .register(new GetDiagramByUrlTool())
-                    .register(new OpenDiagramTool());
+                    .register(new OpenDiagramTool())
+                    .register(new GetActiveDiagramTool())
+                    .register(new GetSelectionTool())
+                    .register(new LintDiagramTool());
             server = new McpServer(config.getBindAddress(), config.getPort(), registry,
                     new EdtToolInvoker(), VERSION, VpLog::error,
                     new FileResourceProvider(pluginDir, SCHEMA_VERSION, capabilities));
@@ -93,7 +101,7 @@ public final class RouterPlugin implements VPPlugin {
     }
 
     private void logEnvironment(File pluginDir) {
-        VpLog.info("--- VP MCP Router " + VERSION + " loading ---");
+        VpLog.info("--- VP MCP Router (Revamped) " + VERSION + " loading ---");
         VpLog.info("Plugin directory : " + pluginDir);
         VpLog.info("Java runtime     : " + System.getProperty("java.version"));
         try {

@@ -10,7 +10,6 @@ import com.vp.plugin.diagram.ICaptionUIModel;
 import com.vp.plugin.diagram.IDiagramElement;
 import com.vp.plugin.diagram.IDiagramUIModel;
 import com.vp.plugin.diagram.IShapeUIModel;
-import com.vp.plugin.diagram.IDiagramUIModel;
 import com.vp.plugin.model.IModelElement;
 import com.vp.plugin.model.IRelationship;
 import com.vp.plugin.model.IProject;
@@ -175,16 +174,65 @@ public final class BatchApplier {
         if (placed != model) {
             dropOrphan(model);
         }
+        String containerNote = null;
+        JsonElement containerRef = op.get("container");
+        if (containerRef != null && !containerRef.isJsonNull()) {
+            containerNote = nestInContainer(state, containerRef, view, placed, gx, gy, gw, gh);
+        }
         VpLog.info("APPLY create_element id=" + id + " vp_id=" + view.getId());
         // vp_id is the model id (the stable identity, matching create_raw);
         // view_id is what move/style/delete_element and add_member want.
         JsonObject placedEntry = appliedEntry(id, "element", placed.getId(), placed.getName());
         placedEntry.addProperty("view_id", view.getId());
+        if (containerRef != null && !containerRef.isJsonNull()) {
+            placedEntry.addProperty("container_view_id",
+                    requireEndpoint(state, containerRef).view.getId());
+            if (containerNote != null) {
+                placedEntry.addProperty("container_note", containerNote);
+            }
+        }
         if (!name.equals(placed.getName())) {
             placedEntry.addProperty("name_warning",
                     "VP kept \"" + placed.getName() + "\" instead of \"" + name + "\".");
         }
         return placedEntry;
+    }
+
+    /**
+     * Nests a fresh view inside a container shape (ADR-0029): the view becomes
+     * a child of the container view, and the model a child of the container
+     * model, matching what a drop into a System boundary does in the UI. The
+     * view nesting is required (failure throws, so the batch compensates);
+     * the model nesting is best-effort and reported as a note when VP refuses
+     * it. Bounds are re-asserted afterwards in absolute diagram coordinates.
+     */
+    private static String nestInContainer(State state, JsonElement containerRef, IDiagramElement view,
+            IModelElement model, int x, int y, int width, int height) {
+        Endpoint container = requireEndpoint(state, containerRef);
+        if (!(view instanceof IShapeUIModel)) {
+            throw new IllegalStateException("Only shapes can go inside a container.");
+        }
+        IShapeUIModel shape = (IShapeUIModel) view;
+        if (!container.view.addChild(shape)) {
+            IDiagramElement parent = shape.getParent();
+            if (parent == null || !container.view.getId().equals(parent.getId())) {
+                throw new IllegalStateException("VP refused to nest the shape inside container '"
+                        + container.view.getId() + "'.");
+            }
+        }
+        shape.setBounds(x, y, width, height);
+        String note = null;
+        try {
+            if (model.getParent() == null || !container.model.getId().equals(model.getParent().getId())) {
+                container.model.addChild(model);
+            }
+            if (model.getParent() == null || !container.model.getId().equals(model.getParent().getId())) {
+                note = "Shape is nested, but VP kept the model outside '" + container.model.getName() + "'.";
+            }
+        } catch (RuntimeException refused) {
+            note = "Shape is nested, but VP refused the model nesting: " + refused;
+        }
+        return note;
     }
 
     /** Fresh tables follow entity naming by default; opt out so setName sticks. */
@@ -513,8 +561,17 @@ public final class BatchApplier {
         String oldName = model.getName();
         String oldDocumentation = model.getDocumentation();
         List<String> oldStereotypes = stereotypeNames(model);
-        compensations.add(new Compensation(id, () -> restoreSnapshot(
-                model, oldName, oldDocumentation, oldStereotypes)));
+        JsonElement taggedValues = op.get("tagged_values");
+        JsonObject wantedTags = taggedValues != null && taggedValues.isJsonObject()
+                ? taggedValues.getAsJsonObject() : null;
+        Map<String, String> oldTags = wantedTags == null ? Map.of()
+                : TaggedValueWriter.snapshot(model, wantedTags);
+        compensations.add(new Compensation(id, () -> {
+            restoreSnapshot(model, oldName, oldDocumentation, oldStereotypes);
+            if (!oldTags.isEmpty()) {
+                TaggedValueWriter.restore(model, oldTags);
+            }
+        }));
 
         JsonObject entry = appliedEntry(id, "model", model.getId(), model.getName());
         JsonElement name = op.get("name");
@@ -551,6 +608,13 @@ public final class BatchApplier {
             JsonArray applied = new JsonArray();
             stereotypeNames(model).forEach(applied::add);
             entry.add("stereotypes", applied);
+        }
+        if (wantedTags != null) {
+            JsonObject tags = new TaggedValueWriter(state.factory).apply(model, wantedTags);
+            entry.add("tagged_values", tags.get("applied"));
+            if (tags.getAsJsonArray("warnings").size() > 0) {
+                entry.add("tagged_value_warnings", tags.get("warnings"));
+            }
         }
         VpLog.info("APPLY update_element id=" + id + " model=" + model.getId());
         return entry;

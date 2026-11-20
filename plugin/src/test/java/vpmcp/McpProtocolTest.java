@@ -13,7 +13,6 @@ import vpmcp.core.DirectToolInvoker;
 import vpmcp.core.JsonRpc;
 import vpmcp.core.McpProtocolHandler;
 import vpmcp.core.McpToolRegistry;
-import vpmcp.dev.EchoTool;
 import vpmcp.vp.FileResourceProvider;
 
 /**

@@ -182,15 +182,25 @@ public final class PlanValidator {
             errors.add(error(id, "Geometry fields x/y/width/height must be numbers."));
             return;
         }
+        JsonElement containerRef = op.get("container");
+        String container = null;
+        if (containerRef != null && !containerRef.isJsonNull()) {
+            container = resolveElement(project, containerRef, symbols);
+            if (container == null) {
+                errors.add(error(id, "Unknown \"container\" " + describeRef(containerRef)
+                        + "; use the view id of a shape on the same diagram (for example a "
+                        + "System boundary or Package) or a plan ref."));
+                return;
+            }
+        }
         symbols.put(id, "element");
+        String summary = modelType + " '" + name.trim() + "' on diagram '" + diagram + "'"
+                + (container == null ? "" : " inside '" + container + "'");
+        String undo = "remove '" + name.trim() + "' from its diagram and delete its model";
         if (tiers.isVerifiedElement(modelType)) {
-            plan.add(entry(id, "create_element",
-                    modelType + " '" + name.trim() + "' on diagram '" + diagram + "'",
-                    "remove '" + name.trim() + "' from its diagram and delete its model"));
+            plan.add(entry(id, "create_element", summary, undo));
         } else {
-            plan.add(unverifiedEntry(id, "create_element",
-                    modelType + " '" + name.trim() + "' on diagram '" + diagram + "'",
-                    "remove '" + name.trim() + "' from its diagram and delete its model"));
+            plan.add(unverifiedEntry(id, "create_element", summary, undo));
         }
     }
 
@@ -375,16 +385,54 @@ public final class PlanValidator {
                 }
             }
         }
+        JsonElement taggedValues = op.get("tagged_values");
+        String taggedProblem = taggedValuesProblem(taggedValues);
+        if (taggedProblem != null) {
+            errors.add(error(id, taggedProblem));
+            return;
+        }
+        boolean hasTagged = taggedValues != null && !taggedValues.isJsonNull();
         if ((name == null || name.isJsonNull())
                 && (documentation == null || documentation.isJsonNull())
-                && (stereotypes == null || stereotypes.isJsonNull())) {
+                && (stereotypes == null || stereotypes.isJsonNull())
+                && !hasTagged) {
             errors.add(error(id,
-                    "Update needs at least one of name/documentation/stereotypes."));
+                    "Update needs at least one of name/documentation/stereotypes/tagged_values."));
             return;
         }
         symbols.put(id, "element");
-        plan.add(entry(id, "update_element", "update model '" + model + "'",
-                "restore its previous name, documentation and stereotypes"));
+        String summary = "update model '" + model + "'";
+        if (hasTagged) {
+            summary += "; tagged values " + taggedValues.getAsJsonObject().keySet();
+        }
+        plan.add(entry(id, "update_element", summary,
+                "restore its previous name, documentation, stereotypes and tagged values"));
+    }
+
+    /**
+     * Tagged values merge by name: only the named tags change. A string,
+     * number or boolean sets the value (creating the tag when absent); null
+     * removes the tag. Null when the field is absent or well-formed.
+     */
+    static String taggedValuesProblem(JsonElement taggedValues) {
+        if (taggedValues == null || taggedValues.isJsonNull()) {
+            return null;
+        }
+        if (!taggedValues.isJsonObject() || taggedValues.getAsJsonObject().size() == 0) {
+            return "\"tagged_values\" must be a non-empty object of tag name to value "
+                    + "(string, number or boolean; null removes the tag).";
+        }
+        for (Map.Entry<String, JsonElement> tag : taggedValues.getAsJsonObject().entrySet()) {
+            if (tag.getKey().trim().isEmpty()) {
+                return "\"tagged_values\" names must be non-blank.";
+            }
+            JsonElement value = tag.getValue();
+            if (value != null && !value.isJsonNull() && !value.isJsonPrimitive()) {
+                return "Tagged value \"" + tag.getKey()
+                        + "\" must be a string, number, boolean, or null to remove it.";
+            }
+        }
+        return null;
     }
 
     private static void validateUpdateMember(IProject project, JsonObject op, String id,

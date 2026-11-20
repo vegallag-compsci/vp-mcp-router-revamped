@@ -1,8 +1,8 @@
 # AGENTS.md
 
-Visual Paradigm MCP router: an in-process VP plugin that serves the
-open project as JSON over Streamable HTTP and writes back through
-previewed, compensable batches. Writes are tiered — verified
+vp-mcp-router-revamped: an in-process Visual Paradigm plugin that
+serves the open project as JSON over Streamable HTTP, reviews it, and
+writes back through previewed, compensable, backed-up batches. Writes are tiered — verified
 families behave exactly as documented, schema-pack types are accepted
 but flagged unverified. Schema packs are versioned per VP minor so VP
 updates ship as data, not rebuilds.
@@ -13,12 +13,15 @@ updates ship as data, not rebuilds.
 |---|---|
 | `plugin/` | Java plugin source: zero-dep MCP core, EDT invoker, extractor, write path |
 | `schemas/` | versioned JSON schema packs per VP minor (`v18.1/`); `autovendor.py` regenerates from `openapi.jar` |
-| `install.sh` | root bootstrapper: downloads a GitHub release and runs the bundled `opencode/install.sh` (the curl-pipeable install path) |
-| `opencode/` | `install.sh`, `release.sh`, `mcp.json` snippet, `skills/vp-router/` |
+| `install.sh` | Linux/macOS bootstrapper: downloads a GitHub release and runs the bundled `opencode/install.sh` (the curl-pipeable install path) |
+| `scripts/` | Windows: `install-windows.ps1` (build or release-zip install), `release.ps1` (cut a release) |
+| `opencode/` | Linux/macOS `install.sh` and `release.sh`, opencode `mcp.json` snippet, opencode skill |
+| `.claude/skills/vp-router/` | Claude Code skill (the same workflow as the opencode skill) |
+| `CLAUDE.md` | Claude Code specifics on top of this file; `CLAUDE.local.md` (gitignored) holds private notes |
 | `docs/` | architecture decision records (`INDEX.md` + one file per ADR), `INSTALL.md` |
-| `dist/` | release zips built by `opencode/release.sh` (gitignored; published as GitHub Release assets) |
+| `dist/` | release zips built by the release scripts (gitignored; published as GitHub Release assets) |
 | `var/` | runtime state and probe captures (gitignored) |
-| `TODO.md` | deferred ideas and tasks |
+| `TODO.md` | roadmap: deferred ideas and tasks |
 
 ## Glossary
 
@@ -46,9 +49,10 @@ report it with file/line evidence and a proposed correction.
 - Small increments: never land large untested code. If it doesn't work it just pollutes the repo.
 - Stop after each phase and wait for review before starting the next.
 - One scoped commit per phase, message documents what changed.
-- Versions change only through `opencode/release.sh <v>` (refuses
-  dirty trees, tests, builds, packages `dist/`). Never hand-edit
-  the VERSION string.
+- Versions change only through a release script —
+  `scripts/release.ps1 -Version <v>` (Windows) or
+  `opencode/release.sh <v>` (Linux/macOS). Both refuse dirty trees,
+  test, build and package `dist/`. Never hand-edit the VERSION string.
 - Order: research → probe → implement → test → review → live run → docs.
 - Probe-first for anything touching `openapi.jar` or live VP.
 
@@ -63,37 +67,22 @@ report it with file/line evidence and a proposed correction.
   stick, refused placement). The applied entry carries the effective
   values and `name_warning`; always read back what actually landed.
 
-### VP restarts (development and testing only)
+### VP restarts
 
-- During development and testing you may kill and restart Visual
-  Paradigm yourself without asking: `pkill -f '[i]nstall4j.RV'` (the
-  bracket matters: a plain pattern matches the wrapping shell's own
-  command line and kills your own command), then launch
-  `/usr/bin/visual-paradigm` in the background and poll the MCP
-  endpoint until it answers.
-- Always pass the project path on launch
-  (`visual-paradigm /home/v/Documents/VPProjects/untitled.vpp`): it
-  skips the startup dialog, which otherwise blocks project load
-  (verified: diagrams visible with zero clicks).
-- The endpoint answers before the project finishes loading — early
-  answers can show a transient empty project. Poll until the diagram
-  count is stable before trusting reads.
-- Preconditions: the open project is saved (confirm once per session
-  if unsure — an unsaved restart loses work); announce each restart
-  in chat; never restart outside dev/test or while the user is
-  actively modeling.
-- Restarts can drop VP's academic-license activation (observed
-  2026-09-25: license needed re-activation after a restart). Prefer
-  to avoid restarts entirely; when one is truly needed, warn the user
-  first and have them confirm the license is still active afterwards.
-- Never copy a jar over the running VP (`cp` straight onto
-  `plugins/vp.router/lib/router.jar` tore the classloader with a
-  ZipException, 2026-09-25). Stage atomically instead: copy to a temp
-  file in the same directory, then `mv` over the target.
-- Before killing, save via `vp_save_project` with confirm and poll
-  the `.vpp` mtime until it moves past the pre-save value (writes land
-  async, 5-20s observed — a single stat proves nothing); if the mtime
-  never moves, do not kill — ask the user to save first.
+- Agents never launch, kill or restart Visual Paradigm on their own. Ask
+  the user, every time. Restarts can drop license activation (observed on
+  an academic license) and lose unsaved work.
+- Before asking for a restart, offer `vp_save_project` (confirm-gated)
+  if the agent has made unsaved edits; with a save, the `.vpp` mtime moves
+  5-20s later (writes land async).
+- After a restart, the endpoint answers before the project finishes
+  loading — early reads can show an empty project. Poll
+  `vp_list_diagrams` until the diagram count is stable.
+- Launching VP with the project path skips the startup dialog
+  (`visual-paradigm <file>.vpp` on Linux; the `.vpp` file on Windows).
+- Never copy a jar over a running VP: it tore the classloader with a
+  ZipException. The installers refuse while VP runs and stage the jar
+  next to the target before swapping it in.
 
 ### Code
 

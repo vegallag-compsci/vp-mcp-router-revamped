@@ -19,6 +19,11 @@ instead of retrying. Start every session with `vp_capabilities`.
 
 ## Reads
 
+Start from what the operator sees: `vp_get_selection` for "this/these",
+`vp_get_active_diagram` for "this diagram"; ask only when nothing is
+active or selected. `vp_lint_diagram` reviews a diagram (active by
+default) and returns findings with ids ready for a batch.
+
 `vp_list_diagrams`, `vp_list_models` (every model incl. members and
 orphans), `vp_get_model` (one model by id, with the diagrams it is
 shown on), `get_diagram_by_url` (full graph + visuals),
@@ -68,4 +73,8 @@ linger. Deletion is final — name targets explicitly at confirm.
 ## Saving
 
 Never auto-saved. After clean batches offer `vp_save_project`
-(`confirm: true`) and report the file path.
+(`confirm: true`) and report the file path. Apply copies the `.vpp` as
+last saved before the first write after each save (`backup` in the
+result; `backup`/`backup_dir`/`backup_keep` in `mcp.properties`).
+New elements go inside a boundary with `create_element.container`;
+`update_element.tagged_values` merges tags by name (null removes).

@@ -2,10 +2,21 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>vp-mcp-router</groupId>
+  <groupId>vp-mcp-router-revamped</groupId>
   <artifactId>plugin</artifactId>
-  <version>0.1.0</version>
+  <!-- Build coordinate only. The released plugin version is RouterPlugin.VERSION,
+       set by the release scripts (scripts/release.ps1, opencode/release.sh). -->
+  <version>0</version>
   <packaging>jar</packaging>
+  <name>vp-mcp-router-revamped</name>
+  <description>MCP server plugin for Visual Paradigm: read, review and edit the open project.</description>
+  <url>https://github.com/vegallag-compsci/vp-mcp-router-revamped</url>
+  <licenses>
+    <license>
+      <name>MIT</name>
+      <url>https://opensource.org/licenses/MIT</url>
+    </license>
+  </licenses>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -50,17 +61,26 @@
             <phase>package</phase>
             <goals><goal>shade</goal></goals>
             <configuration>
-              <filters>
-                <filter>
-                  <artifact>*:*</artifact>
-                  <!-- dev-only protocol harness (DevServer/EchoTool), not for the VP plugin jar -->
-                  <excludes><exclude>vpmcp/dev/**</exclude></excludes>
-                </filter>
-              </filters>
+              <!-- the reduced POM is only for publishing; re-reading it drops OS-activated
+                   profiles (windows-vp below), which breaks the systemPath on Windows -->
+              <createDependencyReducedPom>false</createDependencyReducedPom>
             </configuration>
           </execution>
         </executions>
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <!-- Windows default install location; -Dvp.openApi=... still overrides it. -->
+    <profile>
+      <id>windows-vp</id>
+      <activation>
+        <os><family>windows</family></os>
+      </activation>
+      <properties>
+        <vp.openApi>C:/Program Files/Visual Paradigm 18.1/lib/openapi.jar</vp.openApi>
+      </properties>
+    </profile>
+  </profiles>
 </project>

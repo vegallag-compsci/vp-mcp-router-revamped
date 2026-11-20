@@ -1,4 +1,4 @@
-package vpmcp.dev;
+package vpmcp;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;

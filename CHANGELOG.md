@@ -1,0 +1,38 @@
+# Changelog
+
+## 0.17.0 — vp-mcp-router-revamped (first release)
+
+Revamp of [chramiq/vp-mcp-router](https://github.com/chramiq/vp-mcp-router)
+0.16.2. Tool names, op shapes and the plugin id (`vp.router`) are
+unchanged, so existing agent setups keep working.
+
+### Added
+
+- `vp_get_selection` and `vp_get_active_diagram`: read what the user has
+  in front of them and selected (ADR-0027).
+- `vp_lint_diagram`: 14 structural and layout rules with ids ready for a
+  fix batch (ADR-0030).
+- `update_element.tagged_values`: merge-by-name tag writes with typed
+  coercion, veto warnings and compensation (ADR-0028).
+- `create_element.container`: nest new shapes in a System boundary or
+  other container, view and model (ADR-0029).
+- Automatic `.vpp` backup before writes, configurable in `mcp.properties`
+  (ADR-0031).
+- Windows: `scripts/install-windows.ps1` (release or source mode) and
+  `scripts/release.ps1`; Maven finds VP's `openapi.jar` on Windows.
+- Claude Code: `CLAUDE.md` and the `vp-router` skill under `.claude/`.
+
+### Changed
+
+- Release zips are `vp-router-revamped-<v>.zip` and also carry
+  `install-windows.ps1`, the Claude Code skill, `LICENSE` and `NOTICE.txt`.
+- Both installers stage the jar and swap it in, never writing over a
+  loaded jar.
+- Agents never restart Visual Paradigm themselves (AGENTS.md).
+- Plugin display name: "VP MCP Router (Revamped)".
+
+### Removed
+
+- The unused original Avernus entry point (`VpMcpPlugin`) and the
+  `DevServer` harness; `EchoTool` moved to test sources (ADR-0032).
+- The HotSwap recipe from INSTALL.md (its agent jar was never in the repo).

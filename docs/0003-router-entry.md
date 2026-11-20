@@ -18,3 +18,6 @@ does this for the upstream toolset.
 
 - `:8899` serves `vp_list_diagrams` + `get_diagram_by_url`; the full
   diagram graph is readable over HTTP.
+
+> Superseded by [0032](0032-revamp.md): the vendored entry was removed;
+> `RouterPlugin` is the only entry point.
