@@ -9,6 +9,12 @@
   lists them; `vp_revert_batch` (dry run, then `confirm: true`) undoes one
   batch from the current VP session, refusing when a later batch touched
   the same elements (ADR-0033).
+- `vp_export_text`: deterministic PlantUML, Mermaid or normalized JSON for
+  one diagram or all of them, inline or written to a folder (ADR-0034).
+- `vp_layout`: run a VP auto-layout on a whole diagram; every view's
+  geometry is snapshotted and journaled, so `vp_revert_batch` undoes it
+  (ADR-0035).
+- Skills: look at a PNG after every batch, and an auto-layout workflow.
 
 ## 0.17.0 — vp-mcp-router-revamped (first release)
 

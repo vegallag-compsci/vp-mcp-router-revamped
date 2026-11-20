@@ -35,3 +35,5 @@
 | [0031](0031-backups.md) | Backup before writes | accepted |
 | [0032](0032-revamp.md) | Revamped fork: cleanup, Windows, attribution | accepted |
 | [0033](0033-change-journal.md) | Change journal and batch revert | accepted |
+| [0034](0034-text-export.md) | Text export for git (PlantUML, Mermaid, JSON) | accepted |
+| [0035](0035-layout.md) | vp_layout with journaled undo | accepted |

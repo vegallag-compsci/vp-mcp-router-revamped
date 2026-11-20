@@ -20,6 +20,8 @@ import vpmcp.tools.NeighborhoodTool;
 import vpmcp.tools.PreviewBatchTool;
 import vpmcp.tools.SaveProjectTool;
 import vpmcp.tools.ListDiagramsTool;
+import vpmcp.tools.ExportTextTool;
+import vpmcp.tools.LayoutTool;
 import vpmcp.tools.ListChangesTool;
 import vpmcp.tools.ListModelsTool;
 import vpmcp.tools.RevertBatchTool;
@@ -77,6 +79,8 @@ public final class RouterPlugin implements VPPlugin {
                     .register(new ApplyBatchTool(tiers, backups, journal))
                     .register(new ListChangesTool(journal))
                     .register(new RevertBatchTool(journal, backups))
+                    .register(new LayoutTool(backups, journal))
+                    .register(new ExportTextTool())
                     .register(new NeighborhoodTool())
                     .register(new SaveProjectTool())
                     .register(new GetDiagramByUrlTool())

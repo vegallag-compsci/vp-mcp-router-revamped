@@ -31,12 +31,23 @@ shown on), `get_diagram_by_url` (full graph + visuals),
 model id), `vp_export_image` (png/svg/pdf, crop or
 `crop_to_element`). Prefer SVG for captioned diagrams: the PNG
 rasterizer clips captions at shape bounds, vector markup keeps them.
+`vp_export_text` (plantuml/mermaid/json, `out_dir`, `all`) writes
+deterministic text for git diffs and reports.
 
 ## Writes (tiers, not walls)
 
 Dry-run with `vp_preview_batch`, show the plan with undos, then
 `vp_apply_batch` with `confirm: true`. Partial failure compensates
-in reverse; report applied/compensated/errors.
+in reverse; report applied/compensated/errors. After every batch,
+read back and then look: export a PNG of the changed area and check
+for hidden lines, overlapping labels or shapes, and elements outside
+their boundary; propose fixes for what you see.
+
+`vp_layout` lays out a whole diagram (dry run, then `confirm: true`);
+judge the result from an image and offer `vp_revert_batch` if it is
+worse. `route_orthogonal` only re-routes lines. Never run shape
+layouts on use case diagrams with a System boundary: VP moves every
+use case out of it.
 
 - Types are tiered. Verified families (Class/UseCase/Activity/State/
   ER/Interaction/Deployment diagrams; Actor/UseCase/Class/Activity/

@@ -5,9 +5,10 @@ against live VP before code (AGENTS.md).
 
 ## Workflow
 
-- `vp_layout`: trigger VP's built-in layouts (`DiagramManager.layout`,
-  `LAYOUT_HIERARCHIC`, `LAYOUT_ORTHOGONAL`, ...) on a diagram or selection.
-- Text export (PlantUML / Mermaid / JSON) so model changes diff in git.
+- Selection-only layout: `IDiagramUIModel.layoutDiagramElement(...)` exists
+  but is unprobed; `vp_layout` covers whole diagrams.
+- Layout options (`LayoutOption` spacing, orientation) via
+  `openAndLayoutDiagram`.
 - Lint auto-fix suggestions: emit a ready `vp_preview_batch` op list per
   finding.
 

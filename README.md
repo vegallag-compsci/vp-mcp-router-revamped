@@ -36,6 +36,8 @@ Built on [chramiq/vp-mcp-router](https://github.com/chramiq/vp-mcp-router):
 | `create_element.container` | New use cases land inside the System boundary |
 | Automatic `.vpp` backups before writes | A restore point even for batches you regret |
 | `vp_list_changes`, `vp_revert_batch` | A change journal: see what the agent changed, undo one batch |
+| `vp_layout` | VP's auto-layouts, journaled so one call undoes them |
+| `vp_export_text` | PlantUML / Mermaid / JSON text of diagrams for git diffs and reports |
 | Windows installer and release script, Claude Code skill | First-class Windows + Claude Code support |
 
 See [CHANGELOG.md](CHANGELOG.md) for details.
