@@ -27,17 +27,41 @@
 - Batch op `route_connector {element, points, label?}`: sets a line's
   whole path and moves its label.
 - Lint rule `label_misplaced`: a line's label away from its own line.
+- `vp_relationship_rules` (ADR-0040): relationship names and the element
+  types each can join, as probed in VP; names VP lacks (Trace, Refine,
+  DeriveReqt) point to the right one.
+- `update_element.requirement {id, text, kind, source, risk,
+  verify_method}`: `id` sets the ID a requirement box shows (replacing
+  VP's REQ001 auto-number).
+- `style_element.show_tags` (`diagram`/`all`/`non_empty`/`none`) for
+  requirement boxes; `show_element.container` frames a view without
+  moving its shared model.
 
 ### Changed
 
 - `move_element` carries an actor's name along and redraws straight lines
   attached to the moved shape. Undo restores both.
-- `System` is a verified element type.
+- `System`, `Requirement` and `Package`, the `RequirementDiagram` and the
+  `Satisfy` relationship are verified types.
+- `vp_apply_batch` returns a short summary by default (counts, one line
+  per op with ids and warnings, errors, backup, batch id);
+  `detail: "full"` returns everything.
 - «extend» follows VP's own convention: `from` is the base use case,
   where VP draws the arrowhead and extension point. PlantUML and Mermaid
   export now draw the UML arrow from the extension to the base.
 
 ### Fixed
+
+- Preview refuses connect endpoints VP rejects at apply (e.g. a use case
+  as the target of RQTrace), including elements created earlier in the
+  batch.
+- Tag names that differ from an existing tag only in case or spacing are
+  refused instead of silently becoming a second tag; on a requirement,
+  `ID`/`Text` tags point to `requirement`.
+- Documentation set on a requirement reports that it is the box's Text.
+- The revert dry run lists the auto-numbers (REQ00n) VP will not reuse.
+- `name_warning` explains a refused name when a same-type sibling already
+  has it (VP refuses duplicates silently).
 
 - `vp_lint_diagram` no longer fails on diagrams with swimlanes, and no
   longer reports nodes as overlapping the lane they sit in.

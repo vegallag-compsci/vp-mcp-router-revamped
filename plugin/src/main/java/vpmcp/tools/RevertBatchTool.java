@@ -51,6 +51,29 @@ public final class RevertBatchTool implements McpTool {
         return definition;
     }
 
+    /**
+     * VP's auto-numbers of the batch's created elements, read live: VP assigns
+     * them after the create returns, so the applied entry cannot carry them.
+     */
+    public static JsonArray userIds(IProject project, java.util.List<String> modelIds) {
+        JsonArray out = new JsonArray();
+        for (String id : modelIds) {
+            com.vp.plugin.model.IModelElement model;
+            try {
+                model = vpmcp.vp.ModelLookup.byId(project, id);
+            } catch (RuntimeException gone) {
+                model = null;
+            }
+            if (model instanceof com.vp.plugin.model.IHasChildrenBaseModelElement) {
+                String number = ((com.vp.plugin.model.IHasChildrenBaseModelElement) model).getUserID();
+                if (number != null && !number.isEmpty()) {
+                    out.add(number);
+                }
+            }
+        }
+        return out;
+    }
+
     /** Views on batch-created diagrams that the batch did not make. */
     public static JsonArray handAddedContent(IProject project,
             java.util.Map<String, java.util.Set<String>> created) {
@@ -106,6 +129,14 @@ public final class RevertBatchTool implements McpTool {
             plan.addProperty("warning", handAdded.size() + " element(s) on diagrams this batch created "
                     + "were added afterwards (by hand or by later batches); reverting deletes those "
                     + "diagrams with them. Their models stay in the project.");
+        }
+        JsonArray numbers = userIds(project, journal.createdModelIds(batchId));
+        if (numbers.size() > 0) {
+            // Live 2026-11-20: reverting REQ003 did not free it; the next requirement was REQ004.
+            plan.add("numbers_not_reused", numbers);
+            plan.addProperty("numbering_note", "VP does not reissue the auto-numbers " + numbers
+                    + " after this revert; later elements continue after them. Set ids explicitly "
+                    + "(update_element \"requirement\": {\"id\": ...}) if the sequence matters.");
         }
         if (!confirm || !plan.get("allowed").getAsBoolean()) {
             plan.addProperty("dry_run", true);

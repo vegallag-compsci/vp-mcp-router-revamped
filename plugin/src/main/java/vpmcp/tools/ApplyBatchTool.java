@@ -33,13 +33,18 @@ public final class ApplyBatchTool implements McpTool {
             + "write after each save, the .vpp as last saved is copied to a backup folder; "
             + "the result's \"backup\" reports the copy (restore by opening it in VP). Every "
             + "batch that changed the project is journaled; the result's \"batch_id\" names it "
-            + "for vp_list_changes and vp_revert_batch.";
+            + "for vp_list_changes and vp_revert_batch. The result is short by default: counts per "
+            + "kind, one line per applied op (id, kind, vp_id, view_id and any warning or note), errors, "
+            + "compensated, backup and batch_id. Pass \"detail\": \"full\" for the whole plan and every "
+            + "applied field.";
 
     private static final String INPUT_SCHEMA =
             "{\"type\":\"object\","
             + "\"properties\":{"
             + "\"ops\":{\"type\":\"array\",\"description\":\"Write ops in dependency order.\"},"
-            + "\"confirm\":{\"type\":\"boolean\",\"description\":\"Must be true.\"}},"
+            + "\"confirm\":{\"type\":\"boolean\",\"description\":\"Must be true.\"},"
+            + "\"detail\":{\"type\":\"string\",\"enum\":[\"summary\",\"full\"],\"default\":\"summary\","
+            + "\"description\":\"summary (default) or full.\"}},"
             + "\"required\":[\"ops\",\"confirm\"],\"additionalProperties\":false}";
 
     private final ToolDefinition definition = new ToolDefinition("vp_apply_batch", DESCRIPTION,
@@ -108,7 +113,62 @@ public final class ApplyBatchTool implements McpTool {
                 result.add("journal_warning", record.get("journal_warning"));
             }
         }
-        return result;
+        JsonElement detail = params.get("detail");
+        boolean full = detail != null && detail.isJsonPrimitive() && "full".equals(detail.getAsString());
+        return full ? result : summarize(result);
+    }
+
+    /**
+     * The short result (live: a 72-op batch came back as ~25 KB, half of it
+     * the plan repeated). Keeps everything needed to act on the result:
+     * ids, warnings, notes, errors, compensations, backup, batch id.
+     */
+    public static JsonObject summarize(JsonObject full) {
+        JsonObject out = new JsonObject();
+        for (String key : new String[] {"mutated"}) {
+            if (full.has(key)) {
+                out.add(key, full.get(key));
+            }
+        }
+        JsonObject validation = full.has("validation") && full.get("validation").isJsonObject()
+                ? full.getAsJsonObject("validation") : null;
+        if (validation != null) {
+            out.add("valid", validation.get("valid"));
+            if (validation.has("hint")) {
+                out.add("hint", validation.get("hint"));
+            }
+        }
+        com.google.gson.JsonArray applied = full.has("applied") && full.get("applied").isJsonArray()
+                ? full.getAsJsonArray("applied") : new com.google.gson.JsonArray();
+        JsonObject counts = new JsonObject();
+        com.google.gson.JsonArray lines = new com.google.gson.JsonArray();
+        for (JsonElement item : applied) {
+            JsonObject entry = item.getAsJsonObject();
+            String kind = entry.has("kind") ? entry.get("kind").getAsString() : "other";
+            counts.addProperty(kind, counts.has(kind) ? counts.get(kind).getAsInt() + 1 : 1);
+            JsonObject line = new JsonObject();
+            for (java.util.Map.Entry<String, JsonElement> field : entry.entrySet()) {
+                String key = field.getKey();
+                if (key.equals("id") || key.equals("kind") || key.equals("vp_id") || key.equals("view_id")
+                        || key.equals("user_id")
+                        || key.contains("warning") || key.contains("note") || key.contains("error")) {
+                    line.add(key, field.getValue());
+                }
+            }
+            lines.add(line);
+        }
+        out.add("counts", counts);
+        out.add("applied", lines);
+        for (String key : new String[] {"errors", "compensated", "backup", "batch_id", "journal_warning"}) {
+            if (full.has(key)) {
+                out.add(key, full.get(key));
+            }
+        }
+        if (validation != null && !validation.get("valid").getAsBoolean() && !full.has("errors")) {
+            out.add("errors", validation.get("errors"));
+        }
+        out.addProperty("detail", "summary; pass \"detail\": \"full\" for the plan and every applied field");
+        return out;
     }
 
     static File projectFile(IProject project) {

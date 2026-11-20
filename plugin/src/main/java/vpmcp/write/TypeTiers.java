@@ -30,17 +30,24 @@ public final class TypeTiers {
     public TypeTiers(Set<String> packDiagrams, Set<String> packCreatable) {
         this.verifiedDiagrams = new HashSet<>(java.util.Arrays.asList("ClassDiagram",
                 "UseCaseDiagram", "ActivityDiagram", "StateDiagram", "ERDiagram",
-                "InteractionDiagram", "DeploymentDiagram"));
+                "InteractionDiagram", "DeploymentDiagram",
+                // Requirement work verified in a live traceability task.
+                "RequirementDiagram"));
         this.verifiedElements = new HashSet<>(java.util.Arrays.asList("Actor", "UseCase",
                 "Class", "Activity", "InitialNode", "DecisionNode", "ActivityFinalNode",
                 "State2", "DBTable", "Component", "Node", "LifeLine",
                 // System boundary: created, nested into and read back in every live
                 // use case run since ADR-0039.
-                "System"));
+                "System",
+                // Requirement work verified live: requirements, and
+                // packages used as column frames (styled too).
+                "Requirement", "Package"));
         this.verifiedMembers =
                 new HashSet<>(java.util.Arrays.asList("Attribute", "Operation", "DBColumn"));
         this.verifiedRelationships = new HashSet<>(java.util.Arrays.asList("Association",
-                "Include", "Extend", "Generalization", "Dependency", "Message", "Transition2"));
+                "Include", "Extend", "Generalization", "Dependency", "Message", "Transition2",
+                // Satisfy verified live; RQTrace follows its endpoint table.
+                "Satisfy"));
         this.packDiagrams = new HashSet<>(packDiagrams);
         this.packCreatable = new HashSet<>(packCreatable);
     }

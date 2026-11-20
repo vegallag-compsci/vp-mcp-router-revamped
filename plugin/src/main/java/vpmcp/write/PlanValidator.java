@@ -223,6 +223,7 @@ public final class PlanValidator {
             }
         }
         symbols.put(id, "element");
+        symbols.put(TYPE_KEY + id, modelType);
         String summary = modelType + " '" + name.trim() + "' on diagram '" + diagram + "'"
                 + (container == null ? "" : " inside '" + container + "'");
         String undo = "remove '" + name.trim() + "' from its diagram and delete its model";
@@ -243,15 +244,22 @@ public final class PlanValidator {
         String relType = text(op, "rel_type");
         if (relType == null || !(tiers.isVerifiedRelationship(relType)
                 || tiers.isCreatable(relType))) {
-            errors.add(error(id, "VP cannot create a relationship \"" + relType
-                    + "\"; see the vp://schemas factory-creates resource "
-                    + "(anything beyond the verified families is unverified)."));
+            String hint = ConnectionRules.builtIn().notInVp(relType);
+            errors.add(error(id, "VP cannot create a relationship \"" + relType + "\"; "
+                    + (hint != null ? hint + " " : "")
+                    + "vp_relationship_rules lists the relationship names and what each can join."));
             return;
         }
         String from = resolveElement(project, op.get("from"), symbols);
         String to = resolveElement(project, op.get("to"), symbols);
         if (from == null || to == null) {
             errors.add(error(id, "Unknown endpoint; use an existing element id or a plan ref."));
+            return;
+        }
+        String endsProblem = ConnectionRules.builtIn().problem(relType,
+                endpointType(project, op.get("from"), symbols), endpointType(project, op.get("to"), symbols));
+        if (endsProblem != null) {
+            errors.add(error(id, endsProblem));
             return;
         }
         String problem = pointsProblem(op.get("points"));
@@ -421,12 +429,38 @@ public final class PlanValidator {
             return;
         }
         boolean hasTagged = taggedValues != null && !taggedValues.isJsonNull();
+        IModelElement existing = null;
+        if (op.get("model") != null && op.get("model").isJsonPrimitive() && project != null) {
+            try {
+                existing = ModelLookup.byId(project, op.get("model").getAsString());
+            } catch (RuntimeException unknown) {
+                existing = null;
+            }
+        }
+        String existingType = existing == null ? null : existing.getModelType();
+        if (hasTagged) {
+            String tagProblem = tagNameProblem(taggedValues.getAsJsonObject().keySet(), existingType,
+                    tagNames(existing));
+            if (tagProblem != null) {
+                errors.add(error(id, tagProblem));
+                return;
+            }
+        }
+        JsonElement requirement = op.get("requirement");
+        boolean hasRequirement = requirement != null && !requirement.isJsonNull();
+        if (hasRequirement) {
+            String problem = requirementFieldsProblem(requirement, existingType);
+            if (problem != null) {
+                errors.add(error(id, problem));
+                return;
+            }
+        }
         if ((name == null || name.isJsonNull())
                 && (documentation == null || documentation.isJsonNull())
                 && (stereotypes == null || stereotypes.isJsonNull())
-                && !hasTagged) {
-            errors.add(error(id,
-                    "Update needs at least one of name/documentation/stereotypes/tagged_values."));
+                && !hasTagged && !hasRequirement) {
+            errors.add(error(id, "Update needs at least one of name/documentation/stereotypes/"
+                    + "tagged_values/requirement."));
             return;
         }
         symbols.put(id, "element");
@@ -434,8 +468,129 @@ public final class PlanValidator {
         if (hasTagged) {
             summary += "; tagged values " + taggedValues.getAsJsonObject().keySet();
         }
+        if (hasRequirement) {
+            summary += "; requirement fields " + requirement.getAsJsonObject().keySet();
+        }
         plan.add(entry(id, "update_element", summary,
-                "restore its previous name, documentation, stereotypes and tagged values"));
+                "restore its previous name, documentation, stereotypes, tagged values and requirement fields"));
+    }
+
+    /**
+     * Requirement boxes: which tag lines to show (IRequirementUIModel.setShowAttributes,
+     * values probed live 2026-11-20). "non_empty" hides the empty verifyMethod/risk/status lines.
+     */
+    public static final Map<String, Integer> SHOW_TAGS = new java.util.LinkedHashMap<>();
+
+    static {
+        SHOW_TAGS.put("diagram", 0);
+        SHOW_TAGS.put("all", 1);
+        SHOW_TAGS.put("non_empty", 2);
+        SHOW_TAGS.put("none", 3);
+    }
+
+    /** Symbol-table key prefix recording the model type of elements created earlier in the batch. */
+    private static final String TYPE_KEY = "type:";
+
+    /** Model type behind an endpoint: a view id on the project, or a create_element ref; null if unknown. */
+    private static String endpointType(IProject project, JsonElement reference, Map<String, String> symbols) {
+        if (reference == null) {
+            return null;
+        }
+        if (reference.isJsonObject() && reference.getAsJsonObject().has("ref")) {
+            return symbols.get(TYPE_KEY + reference.getAsJsonObject().get("ref").getAsString());
+        }
+        if (reference.isJsonPrimitive() && project != null) {
+            try {
+                com.vp.plugin.diagram.IDiagramElement view = project.getDiagramElementById(reference.getAsString());
+                IModelElement model = view == null ? null : view.getModelElement();
+                return model == null ? null : model.getModelType();
+            } catch (RuntimeException unknown) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    /** Requirement properties VP keeps as fields, not tags: JSON key → what VP calls it. */
+    public static final Map<String, String> REQUIREMENT_FIELDS = new java.util.LinkedHashMap<>();
+
+    static {
+        REQUIREMENT_FIELDS.put("id", "ID");
+        REQUIREMENT_FIELDS.put("text", "Text");
+        REQUIREMENT_FIELDS.put("kind", "Kind");
+        REQUIREMENT_FIELDS.put("source", "Source");
+        REQUIREMENT_FIELDS.put("risk", "Risk");
+        REQUIREMENT_FIELDS.put("verify_method", "Verify Method");
+    }
+
+    private static String squash(String name) {
+        return name == null ? "" : name.replaceAll("[\\s_-]", "").toLowerCase(java.util.Locale.ROOT);
+    }
+
+    /**
+     * Tag names that would silently become a second tag (live: "text" and "id"
+     * sat next to the built-in "Text" and "ID"): a name that differs from an
+     * existing tag only in case or spacing, or, on a Requirement, a name that is
+     * really one of its fields. Null when the names are fine.
+     */
+    static String tagNameProblem(java.util.Set<String> wanted, String modelType, java.util.List<String> existing) {
+        for (String raw : wanted) {
+            String name = raw.trim();
+            if ("Requirement".equals(modelType) && ("id".equals(squash(name)) || "text".equals(squash(name)))) {
+                // Live 2026-11-20: the box's ID is the model's user ID and its Text is the
+                // documentation; the ID/Text tags do not change what the box shows.
+                String key = squash(name);
+                return "On a Requirement the box's " + ("id".equals(key) ? "ID" : "Text") + " is not the \""
+                        + name + "\" tag: set it with \"requirement\": {\"" + key + "\": ...}"
+                        + ("text".equals(key) ? " (the same value as the documentation)." : ".");
+            }
+            for (String have : existing) {
+                if (!have.equals(name) && squash(have).equals(squash(name))) {
+                    return "Tag \"" + name + "\" differs from the existing tag \"" + have
+                            + "\" only in case or spacing, and would become a second tag. Use \"" + have
+                            + "\" exactly.";
+                }
+            }
+        }
+        return null;
+    }
+
+    static java.util.List<String> tagNames(IModelElement model) {
+        java.util.List<String> names = new java.util.ArrayList<>();
+        com.vp.plugin.model.ITaggedValueContainer container = model == null ? null : model.getTaggedValues();
+        com.vp.plugin.model.ITaggedValue[] tags = container == null ? null : container.toTaggedValueArray();
+        if (tags != null) {
+            for (com.vp.plugin.model.ITaggedValue tag : tags) {
+                if (tag != null && tag.getName() != null) {
+                    names.add(tag.getName());
+                }
+            }
+        }
+        return names;
+    }
+
+    /**
+     * update_element "requirement": {id?, text?, kind?, source?, risk?,
+     * verify_method?}, all strings, only on Requirement models (a plan ref is
+     * checked when applied). Null when fine.
+     */
+    static String requirementFieldsProblem(JsonElement requirement, String modelType) {
+        if (!requirement.isJsonObject() || requirement.getAsJsonObject().size() == 0) {
+            return "\"requirement\" must be a non-empty object with any of " + REQUIREMENT_FIELDS.keySet() + ".";
+        }
+        if (modelType != null && !"Requirement".equals(modelType)) {
+            return "\"requirement\" fields only apply to a Requirement; this model is a " + modelType + ".";
+        }
+        for (Map.Entry<String, JsonElement> field : requirement.getAsJsonObject().entrySet()) {
+            if (!REQUIREMENT_FIELDS.containsKey(field.getKey())) {
+                return "Unknown requirement field \"" + field.getKey() + "\"; use any of "
+                        + REQUIREMENT_FIELDS.keySet() + ".";
+            }
+            if (field.getValue() == null || !field.getValue().isJsonPrimitive()) {
+                return "Requirement field \"" + field.getKey() + "\" must be a string.";
+            }
+        }
+        return null;
     }
 
     /**
@@ -615,9 +770,15 @@ public final class PlanValidator {
             errors.add(error(id, "Style field \"font_name\" must be a non-blank string."));
             return;
         }
+        JsonElement showTags = op.get("show_tags");
+        if (showTags != null && !showTags.isJsonNull()
+                && (!showTags.isJsonPrimitive() || !SHOW_TAGS.containsKey(showTags.getAsString()))) {
+            errors.add(error(id, "\"show_tags\" must be one of " + SHOW_TAGS.keySet() + "."));
+            return;
+        }
         boolean any = false;
         for (String field : new String[] {"background", "foreground", "line_color", "line_weight",
-                "fill_color", "font_color", "font_size", "font_bold", "font_italic", "font_name"}) {
+                "fill_color", "font_color", "font_size", "font_bold", "font_italic", "font_name", "show_tags"}) {
             JsonElement value = op.get(field);
             if (value != null && !value.isJsonNull()) {
                 any = true;
@@ -627,7 +788,7 @@ public final class PlanValidator {
         if (!any) {
             errors.add(error(id,
                     "Style needs at least one of background/fill_color/foreground/line_color/"
-                            + "line_weight/font_color/font_size/font_bold/font_italic/font_name."));
+                            + "line_weight/font_color/font_size/font_bold/font_italic/font_name/show_tags."));
             return;
         }
         symbols.put(id, "element");
@@ -801,9 +962,21 @@ public final class PlanValidator {
             errors.add(error(id, "Geometry fields x/y/width/height must be numbers."));
             return;
         }
+        JsonElement containerRef = op.get("container");
+        String container = null;
+        if (containerRef != null && !containerRef.isJsonNull()) {
+            container = resolveElement(project, containerRef, symbols);
+            if (container == null) {
+                errors.add(error(id, "Unknown \"container\" " + describeRef(containerRef)
+                        + "; use the view id or plan ref of a shape on the same diagram."));
+                return;
+            }
+        }
         symbols.put(id, "element");
         plan.add(entry(id, "show_element",
-                "show model '" + model + "' on diagram '" + diagram + "' (model is shared)",
+                "show model '" + model + "' on diagram '" + diagram + "' (model is shared)"
+                        + (container == null ? "" : " inside '" + container + "' (view only; the model "
+                                + "keeps its owner)"),
                 "remove the view; the shared model is kept"));
     }
 

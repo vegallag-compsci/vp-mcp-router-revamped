@@ -205,6 +205,23 @@ public final class ChangeJournal {
         return plan;
     }
 
+    /** Model ids (vp_id) of the elements this batch created. */
+    public synchronized List<String> createdModelIds(String batchId) {
+        List<String> out = new ArrayList<>();
+        Entry entry = entries.get(batchId);
+        if (entry == null || !entry.record.has("applied")) {
+            return out;
+        }
+        for (JsonElement item : entry.record.getAsJsonArray("applied")) {
+            JsonObject applied = item.getAsJsonObject();
+            if ("element".equals(applied.has("kind") ? applied.get("kind").getAsString() : null)
+                    && applied.has("vp_id") && applied.get("vp_id").isJsonPrimitive()) {
+                out.add(applied.get("vp_id").getAsString());
+            }
+        }
+        return out;
+    }
+
     /**
      * Diagrams this batch created, each with every view and model id the batch
      * itself made, so a caller can spot content added by hand since: reverting

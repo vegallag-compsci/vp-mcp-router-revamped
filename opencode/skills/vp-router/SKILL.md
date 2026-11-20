@@ -51,10 +51,11 @@ layouts on use case diagrams with a System boundary: VP moves every
 use case out of it.
 
 - Types are tiered. Verified families (Class/UseCase/Activity/State/
-  ER/Interaction/Deployment diagrams; Actor/UseCase/Class/Activity/
-  InitialNode/DecisionNode/ActivityFinalNode/State2/DBTable/Component/
-  Node/LifeLine elements; Association/Include/Extend/Generalization/
-  Dependency/Message/Transition2 relationships; Attribute/Operation/
+  ER/Interaction/Deployment/Requirement diagrams; Actor/UseCase/Class/
+  Activity/InitialNode/DecisionNode/ActivityFinalNode/State2/DBTable/
+  Component/Node/LifeLine/System/Requirement/Package elements;
+  Association/Include/Extend/Generalization/Dependency/Message/
+  Transition2/Satisfy relationships; Attribute/Operation/
   DBColumn members) behave exactly as documented.
 - «extend» goes `from` the base (extended) use case `to` the extending
   one: VP draws the arrowhead and the extension point at the `from` end.

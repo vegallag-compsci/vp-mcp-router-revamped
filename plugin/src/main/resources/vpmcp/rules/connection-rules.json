@@ -1,0 +1,37 @@
+{
+  "vp_version": "18.1",
+  "source": "Live probe 2026-11-20: IRelationship.setFrom/setTo for every pair of probed end types (ADR-0040). VP refuses a pair with 'Invalid connection. <type> is not allowed with <rel>'.",
+  "relationships": {
+    "RQTrace": {"use": "trace any element to the requirement it relates to", "from": "*", "to": ["Requirement"],
+      "probed": ["Requirement", "UseCase", "Actor", "Class", "Package", "TestCase"]},
+    "Satisfy": {"use": "an element (often a use case or block) satisfies a requirement", "from": "*", "to": ["Requirement"],
+      "probed": ["Requirement", "UseCase", "Actor", "Class", "Package", "TestCase"]},
+    "Verify": {"use": "a test case (or other element) verifies a requirement", "from": "*", "to": ["Requirement"],
+      "probed": ["Requirement", "UseCase", "Actor", "Class", "Package", "TestCase"]},
+    "RequirementDerive": {"use": "a requirement derived from another (SysML deriveReqt)", "from": "*", "to": ["Requirement"],
+      "probed": ["Requirement", "UseCase", "Class"]},
+    "Dependency": {"use": "general dependency", "from": "*", "to": "*",
+      "probed": ["Requirement", "UseCase", "Actor", "Class"]},
+    "Abstraction": {"use": "abstraction (e.g. «refine», «trace» as a stereotype)", "from": "*", "to": "*",
+      "probed": ["Requirement", "UseCase", "Actor", "Class"]},
+    "Realization": {"use": "realization", "from": "*", "to": "*",
+      "probed": ["Requirement", "UseCase", "Actor", "Class"]},
+    "Association": {"use": "association (actor to use case, class to class)", "from": "*", "to": "*",
+      "probed": ["Requirement", "UseCase", "Actor", "Class"]},
+    "Usage": {"use": "«use» between classes", "pairs": [["Class", "Class"]],
+      "probed": ["Requirement", "UseCase", "Actor", "Class"]},
+    "Generalization": {"use": "inheritance between elements of the same kind", "pairs": [["UseCase", "UseCase"], ["Actor", "Actor"], ["Class", "Class"]],
+      "probed": ["Requirement", "UseCase", "Actor", "Class"]},
+    "Include": {"use": "«include» between use cases (from the including one)", "pairs": [["UseCase", "UseCase"]],
+      "probed": ["Requirement", "UseCase", "Actor", "Class"]},
+    "Extend": {"use": "«extend» between use cases (from the base one; VP draws the arrowhead there)", "pairs": [["UseCase", "UseCase"]],
+      "probed": ["Requirement", "UseCase", "Actor", "Class"]}
+  },
+  "not_in_vp": {
+    "Trace": "VP 18.1 has no Trace relationship: use RQTrace (target a Requirement) or Abstraction.",
+    "Refine": "VP 18.1 has no Refine relationship: use Abstraction with a «refine» stereotype.",
+    "DeriveReqt": "VP 18.1 calls it RequirementDerive.",
+    "Copy": "VP 18.1 has no Copy relationship.",
+    "Containment": "VP 18.1 has no Containment relationship: nest with create_element container."
+  }
+}

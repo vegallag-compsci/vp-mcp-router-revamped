@@ -41,3 +41,4 @@
 | [0037](0037-beyond-the-api.md) | Reaching what the public API cannot build | accepted |
 | [0038](0038-style-profile-and-layout-lint.md) | Style profile, layout lint and layout score | accepted |
 | [0039](0039-use-case-strategy.md) | Use case layout strategy, vp_plan_layout and route_connector | accepted |
+| [0040](0040-requirement-modelling.md) | Requirement modelling: endpoint rules, IDs, tags, short results | accepted |

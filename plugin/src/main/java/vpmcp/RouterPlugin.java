@@ -25,6 +25,7 @@ import vpmcp.tools.LayoutTool;
 import vpmcp.tools.ListChangesTool;
 import vpmcp.tools.PlanLayoutTool;
 import vpmcp.tools.ListModelsTool;
+import vpmcp.tools.RelationshipRulesTool;
 import vpmcp.tools.RevertBatchTool;
 import vpmcp.journal.ChangeJournal;
 import vpmcp.layout.StyleProfile;
@@ -90,7 +91,8 @@ public final class RouterPlugin implements VPPlugin {
                     .register(new GetActiveDiagramTool())
                     .register(new GetSelectionTool())
                     .register(new LintDiagramTool(StyleProfile.load(pluginDir)))
-                    .register(new PlanLayoutTool(StyleProfile.load(pluginDir)));
+                    .register(new PlanLayoutTool(StyleProfile.load(pluginDir)))
+                    .register(new RelationshipRulesTool());
             server = new McpServer(config.getBindAddress(), config.getPort(), registry,
                     new EdtToolInvoker(), VERSION, VpLog::error,
                     new FileResourceProvider(pluginDir, SCHEMA_VERSION, capabilities));

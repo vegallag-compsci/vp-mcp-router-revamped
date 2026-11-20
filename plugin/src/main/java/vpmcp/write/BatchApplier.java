@@ -208,7 +208,14 @@ public final class BatchApplier {
         }
         if (!name.equals(placed.getName())) {
             placedEntry.addProperty("name_warning",
-                    "VP kept \"" + placed.getName() + "\" instead of \"" + name + "\".");
+                    "VP kept \"" + placed.getName() + "\" instead of \"" + name + "\"."
+                            + duplicateNameHint(state.project, placed, name));
+        }
+        String userId = placed instanceof com.vp.plugin.model.IHasChildrenBaseModelElement
+                ? ((com.vp.plugin.model.IHasChildrenBaseModelElement) placed).getUserID() : null;
+        if (userId != null && !userId.isEmpty()) {
+            // VP's auto-number (REQ001, UC303); a revert does not give it back (live 2026-11-20).
+            placedEntry.addProperty("user_id", userId);
         }
         return placedEntry;
     }
@@ -248,6 +255,36 @@ public final class BatchApplier {
             note = "Shape is nested, but VP refused the model nesting: " + refused;
         }
         return note;
+    }
+
+    /**
+     * Why a name did not stick, when the cause is a sibling: VP silently
+     * refuses a name another element of the same type already has under the
+     * same owner (live 2026-11-20: a second "Board shows status" requirement
+     * stayed "Requirement"). Empty when no such sibling exists.
+     */
+    static String duplicateNameHint(IProject project, IModelElement model, String wanted) {
+        IModelElement[] all = project == null ? null : project.toAllLevelModelElementArray();
+        if (all == null || wanted == null) {
+            return "";
+        }
+        IModelElement owner = model.getParent();
+        for (IModelElement other : all) {
+            if (other == null || other.getId().equals(model.getId()) || !wanted.equals(other.getName())
+                    || !java.util.Objects.equals(other.getModelType(), model.getModelType())) {
+                continue;
+            }
+            IModelElement otherOwner = other.getParent();
+            boolean sameOwner = owner == null ? otherOwner == null
+                    : otherOwner != null && owner.getId().equals(otherOwner.getId());
+            if (sameOwner) {
+                return " Another " + model.getModelType() + " named \"" + wanted + "\" (" + other.getId()
+                        + ") already exists " + (owner == null ? "at the project root" : "in '" + owner.getName()
+                        + "'") + ", and VP refuses duplicates there: pick another name, or reuse that element "
+                        + "(show_element).";
+            }
+        }
+        return "";
     }
 
     /** Fresh tables follow entity naming by default; opt out so setName sticks. */
@@ -595,7 +632,8 @@ public final class BatchApplier {
             model.setName(want);
             if (!want.equals(model.getName())) {
                 entry.addProperty("name_warning",
-                        "VP kept \"" + model.getName() + "\" instead of \"" + want + "\".");
+                        "VP kept \"" + model.getName() + "\" instead of \"" + want + "\"."
+                                + duplicateNameHint(state.project, model, want));
             }
             entry.addProperty("name", model.getName());
         }
@@ -625,10 +663,47 @@ public final class BatchApplier {
             entry.add("stereotypes", applied);
         }
         if (wantedTags != null) {
+            // Preview checks existing models; a model made earlier in this batch is checked here.
+            String tagProblem = PlanValidator.tagNameProblem(wantedTags.keySet(), model.getModelType(),
+                    PlanValidator.tagNames(model));
+            if (tagProblem != null) {
+                throw new IllegalStateException(tagProblem);
+            }
             JsonObject tags = new TaggedValueWriter(state.factory).apply(model, wantedTags);
             entry.add("tagged_values", tags.get("applied"));
             if (tags.getAsJsonArray("warnings").size() > 0) {
                 entry.add("tagged_value_warnings", tags.get("warnings"));
+            }
+        }
+        JsonElement requirement = op.get("requirement");
+        if (requirement != null && requirement.isJsonObject()) {
+            if (!(model instanceof com.vp.plugin.model.IRequirement)) {
+                throw new IllegalStateException("\"requirement\" fields only apply to a Requirement; '"
+                        + model.getName() + "' is a " + model.getModelType() + ".");
+            }
+            com.vp.plugin.model.IRequirement req = (com.vp.plugin.model.IRequirement) model;
+            JsonObject before = RequirementFields.read(req);
+            compensations.add(new Compensation(id, () -> RequirementFields.write(req, before)));
+            RequirementFields.write(req, requirement.getAsJsonObject());
+            JsonObject kept = RequirementFields.read(req);
+            JsonObject shown = new JsonObject();
+            for (String key : requirement.getAsJsonObject().keySet()) {
+                shown.add(key, kept.get(key));
+                String want = requirement.getAsJsonObject().get(key).getAsString();
+                if (!want.equals(kept.get(key).isJsonNull() ? "" : kept.get(key).getAsString())) {
+                    entry.addProperty("requirement_warning", "VP kept " + key + " = \"" + kept.get(key)
+                            + "\" instead of \"" + want + "\".");
+                }
+            }
+            entry.add("requirement", shown);
+        }
+        if (model instanceof com.vp.plugin.model.IRequirement && documentation != null
+                && !documentation.isJsonNull()) {
+            // Live: notes put in a requirement's documentation appeared on its Text line.
+            String text = ((com.vp.plugin.model.IRequirement) model).getText();
+            if (text != null && text.equals(model.getDocumentation())) {
+                entry.addProperty("requirement_note", "VP shows a requirement's documentation as its Text "
+                        + "line: this documentation is now the box's Text.");
             }
         }
         VpLog.info("APPLY update_element id=" + id + " model=" + model.getId());
@@ -961,6 +1036,22 @@ public final class BatchApplier {
             snapshot.add("foreground", colorToJson(element.getForeground()));
             element.setForeground(color(foreground.getAsString()));
             entry.addProperty("foreground", hexOrNull(element.getForeground()));
+        }
+        JsonElement showTags = op.get("show_tags");
+        if (showTags != null && !showTags.isJsonNull()) {
+            if (!(element instanceof com.vp.plugin.diagram.shape.IRequirementUIModel)) {
+                throw new IllegalStateException("\"show_tags\" applies to requirement boxes only.");
+            }
+            com.vp.plugin.diagram.shape.IRequirementUIModel box =
+                    (com.vp.plugin.diagram.shape.IRequirementUIModel) element;
+            int before = box.getShowAttributes();
+            compensations.add(new Compensation(id, () -> box.setShowAttributes(before)));
+            box.setShowAttributes(PlanValidator.SHOW_TAGS.get(showTags.getAsString()));
+            for (Map.Entry<String, Integer> option : PlanValidator.SHOW_TAGS.entrySet()) {
+                if (option.getValue() == box.getShowAttributes()) {
+                    entry.addProperty("show_tags", option.getKey());
+                }
+            }
         }
         JsonElement fillColor = op.get("fill_color");
         if (fillColor != null && !fillColor.isJsonNull()
@@ -1348,17 +1439,41 @@ public final class BatchApplier {
         if (view == null) {
             throw new IllegalStateException("This model cannot be shown on this diagram.");
         }
+        compensations.add(new Compensation(id, () -> removeViewOnly(diagram, view)));
         if (op.has("x") || op.has("y") || op.has("width") || op.has("height")) {
             view.setBounds(number(op, "x", view.getX()), number(op, "y", view.getY()),
                     number(op, "width", view.getWidth()), number(op, "height", view.getHeight()));
         }
+        JsonElement containerRef = op.get("container");
+        String containerViewId = null;
+        if (containerRef != null && !containerRef.isJsonNull()) {
+            // View-only: the model is shared with other diagrams and keeps its owner
+            // (a use case stays in its System even when framed elsewhere).
+            Endpoint container = requireEndpoint(state, containerRef);
+            if (!(view instanceof IShapeUIModel)) {
+                throw new IllegalStateException("Only shapes can go inside a container.");
+            }
+            int[] keep = {view.getX(), view.getY(), view.getWidth(), view.getHeight()};
+            IShapeUIModel shape = (IShapeUIModel) view;
+            if (!container.view.addChild(shape)) {
+                IDiagramElement parent = shape.getParent();
+                if (parent == null || !container.view.getId().equals(parent.getId())) {
+                    throw new IllegalStateException("VP refused to place the view inside container '"
+                            + container.view.getId() + "'.");
+                }
+            }
+            shape.setBounds(keep[0], keep[1], keep[2], keep[3]);
+            containerViewId = container.view.getId();
+        }
         state.views.put(id, view);
         state.models.put(id, model);
         state.owners.put(view.getId(), diagram);
-        compensations.add(new Compensation(id, () -> removeViewOnly(diagram, view)));
         VpLog.info("APPLY show_element id=" + id + " vp_id=" + view.getId());
         JsonObject entry = appliedEntry(id, "element", model.getId(), model.getName());
         entry.addProperty("view_id", view.getId());
+        if (containerViewId != null) {
+            entry.addProperty("container_view_id", containerViewId);
+        }
         return entry;
     }
 

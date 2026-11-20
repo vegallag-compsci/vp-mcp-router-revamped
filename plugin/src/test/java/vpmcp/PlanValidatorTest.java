@@ -368,6 +368,15 @@ class PlanValidatorTest {
                 parse("[{\"id\":\"s\",\"op\":\"show_element\",\"diagram\":\"d1\",\"model\":\"mx\"}]"));
 
         assertTrue(result.get("valid").getAsBoolean(), result.toString());
+
+        JsonObject framed = PlanValidator.validate(withModel, parse("[{\"id\":\"s\",\"op\":\"show_element\","
+                + "\"diagram\":\"d1\",\"model\":\"mx\",\"container\":\"v9\"}]"));
+        assertTrue(framed.get("valid").getAsBoolean(), framed.toString());
+        assertTrue(framed.toString().contains("keeps its owner"), "the plan says the model stays put");
+
+        JsonObject lost = PlanValidator.validate(withModel, parse("[{\"id\":\"s\",\"op\":\"show_element\","
+                + "\"diagram\":\"d1\",\"model\":\"mx\",\"container\":\"nowhere\"}]"));
+        assertFalse(lost.get("valid").getAsBoolean());
     }
 
     @Test
@@ -698,7 +707,7 @@ class PlanValidatorTest {
                 java.util.Set.of("Requirement", "Constraint"));
 
         JsonObject result = PlanValidator.validate(project, parse("[{\"id\":\"e\","
-                + "\"op\":\"create_element\",\"diagram\":\"d1\",\"model_type\":\"Requirement\","
+                + "\"op\":\"create_element\",\"diagram\":\"d1\",\"model_type\":\"Constraint\","
                 + "\"name\":\"Stability\"}]"), tiers);
 
         assertTrue(result.get("valid").getAsBoolean(), result.toString());

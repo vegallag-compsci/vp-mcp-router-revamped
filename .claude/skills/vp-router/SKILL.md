@@ -108,13 +108,26 @@ with a System boundary: VP ignores containment and moves every use case out
 of the boundary (seen live). For those, fix spacing with `move_element`
 batches, or try the layout on a `duplicate_diagram` copy first.
 
+## Requirements
+
+- Relationship names and what they join: `vp_relationship_rules` (RQTrace,
+  Satisfy, Verify and RequirementDerive point *at* a Requirement; there is
+  no Trace or Refine).
+- Set what a box shows with `update_element.requirement`: `id` (replaces
+  VP's REQ001 auto-number), `text` (the same value as documentation),
+  `kind`, `source`, `risk`, `verify_method`. Use exact tag names otherwise.
+- Hide empty tag lines with `style_element {show_tags: "non_empty"}`.
+- VP never reuses an auto-number after a revert: set ids explicitly when
+  the sequence matters.
+
 ## Type tiers
 
 Verified (behave exactly as documented): diagrams Class / UseCase / Activity
-/ State / ER / Interaction / Deployment; elements Actor, UseCase, Class,
-Activity, InitialNode, DecisionNode, ActivityFinalNode, State2, DBTable,
-Component, Node, LifeLine; relationships Association, Include, Extend,
-Generalization, Dependency, Message, Transition2; members Attribute,
+/ State / ER / Interaction / Deployment / Requirement; elements Actor,
+UseCase, Class, Activity, InitialNode, DecisionNode, ActivityFinalNode,
+State2, DBTable, Component, Node, LifeLine, System, Requirement, Package;
+relationships Association, Include, Extend, Generalization, Dependency,
+Message, Transition2, Satisfy; members Attribute,
 Operation, DBColumn. Anything else from the schema pack is accepted but
 flagged `unverified`: read it back after applying. `create_raw` is the
 escape hatch for any no-arg factory method.
