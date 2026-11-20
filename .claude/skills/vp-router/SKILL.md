@@ -31,7 +31,9 @@ shapes and fields; this file is the workflow. It mirrors
   select — don't guess.
 - `vp_lint_diagram` (active diagram by default) for a review: findings
   carry view/model ids, so turn them straight into a previewed batch.
-  Run it again after applying to show what is fixed.
+  Run it again after applying to show what is fixed. Quote
+  `layout.score` before and after any tidy; a tidy that lowers it is
+  not done.
 - `vp_list_diagrams` for ids; `get_diagram_by_url` for a whole diagram
   (accepts a bare id); `vp_get_neighborhood` for a slice around one element
   (cheaper on big diagrams; depth 0 omits edges, use depth 1).

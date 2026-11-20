@@ -15,6 +15,16 @@
   geometry is snapshotted and journaled, so `vp_revert_batch` undoes it
   (ADR-0035).
 - Skills: look at a PNG after every batch, and an auto-layout workflow.
+- Layout lint and score (ADR-0038): a style profile (built-in default,
+  `style_profile` override in `mcp.properties`), names measured in the
+  diagram font, 12 layout rules (`off_grid`, `name_wraps`, `line_crossing`,
+  `misaligned`, `container_slack`, ...) and a 0-100 `layout.score` in
+  `vp_lint_diagram`.
+
+### Fixed
+
+- `vp_lint_diagram` no longer fails on diagrams with swimlanes, and no
+  longer reports nodes as overlapping the lane they sit in.
 
 ## 0.17.0 — vp-mcp-router-revamped (first release)
 

@@ -82,6 +82,7 @@ Optional `plugins/vp.router/mcp.properties`:
 | `backup_keep` | `20` | Copies kept per project, oldest pruned |
 | `journal` | `true` | Write the change journal to disk (`false`: memory only; revert still works) |
 | `journal_dir` | `<plugin dir>/journal` | Where `<project>.jsonl` journals go |
+| `style_profile` | (built-in default) | JSON file overriding the layout style profile (ADR-0038) |
 
 ## Schema pack version
 

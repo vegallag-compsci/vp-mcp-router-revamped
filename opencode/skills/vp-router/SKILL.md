@@ -22,7 +22,8 @@ instead of retrying. Start every session with `vp_capabilities`.
 Start from what the operator sees: `vp_get_selection` for "this/these",
 `vp_get_active_diagram` for "this diagram"; ask only when nothing is
 active or selected. `vp_lint_diagram` reviews a diagram (active by
-default) and returns findings with ids ready for a batch.
+default) and returns findings with ids ready for a batch, plus a
+`layout.score` (0-100) to compare before and after a tidy.
 
 `vp_list_diagrams`, `vp_list_models` (every model incl. members and
 orphans), `vp_get_model` (one model by id, with the diagrams it is

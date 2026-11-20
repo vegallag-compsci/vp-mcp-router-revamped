@@ -1,0 +1,22 @@
+{
+  "name": "default",
+  "grid": 10,
+  "font": { "name": "Dialog", "size": 11 },
+  "line_height": 15,
+  "sizes": {
+    "Actor":    { "width": 30, "height": 60 },
+    "UseCase":  { "height": 40, "text_padding": 30, "min_width": 100 },
+    "Activity": { "height": 40, "text_padding": 24, "min_width": 100 },
+    "Class":    { "text_padding": 20, "min_width": 100 },
+    "default":  { "text_padding": 20, "min_width": 60 }
+  },
+  "spacing": {
+    "min_gap": 6,
+    "sibling_gap": 20,
+    "container_padding": 20,
+    "align_tolerance": 8,
+    "spacing_tolerance": 10
+  },
+  "actors": { "sides": "left_right" },
+  "score": { "error": 15, "warning": 5, "info": 1 }
+}

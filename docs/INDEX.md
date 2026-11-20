@@ -37,3 +37,6 @@
 | [0033](0033-change-journal.md) | Change journal and batch revert | accepted |
 | [0034](0034-text-export.md) | Text export for git (PlantUML, Mermaid, JSON) | accepted |
 | [0035](0035-layout.md) | vp_layout with journaled undo | accepted |
+| [0036](0036-layout-engine-facts.md) | VP geometry facts for the layout engine | accepted |
+| [0037](0037-beyond-the-api.md) | Reaching what the public API cannot build | accepted |
+| [0038](0038-style-profile-and-layout-lint.md) | Style profile, layout lint and layout score | accepted |

@@ -10,6 +10,8 @@ import java.util.List;
 import vpmcp.core.McpTool;
 import vpmcp.core.McpToolException;
 import vpmcp.core.ToolDefinition;
+import vpmcp.layout.StyleProfile;
+import vpmcp.layout.TextMeasure;
 import vpmcp.lint.DiagramLinter;
 import vpmcp.vp.DiagramExtractor;
 import vpmcp.vp.DiagramLocator;
@@ -26,7 +28,14 @@ public final class LintDiagramTool implements McpTool {
             + "crowded (touching / under 6px apart), duplicate_name, duplicate_number and "
             + "numbering_gap (UC-01.. style names), self_relationship, include_extend_ends "
             + "(include/extend must join two use cases), actor_to_actor_association, "
-            + "missing_documentation. Each finding: {rule, severity error|warning|info, message, "
+            + "missing_documentation. Layout rules, measured against the style profile "
+            + "(mcp.properties style_profile, else the built-in default): off_grid, "
+            + "inconsistent_size, name_truncated / name_wraps (name wider than its shape, measured "
+            + "in the diagram font), line_crossing, line_through_shape, label_overlap, misaligned "
+            + "(near-miss columns/rows), uneven_spacing, actor_wrong_side, boundary_padding. The "
+            + "result's \"layout\" block has score 0-100 (100 = no layout findings; counts info "
+            + "findings even when include_info is false), penalty_by_rule and the profile name: "
+            + "compare it before and after a tidy. Each finding: {rule, severity error|warning|info, message, "
             + "suggestion, elements[{view_id, model_id, name}]}; ids feed vp_preview_batch. "
             + "Omit vpp_url to check the diagram active in the editor.";
 
@@ -40,6 +49,16 @@ public final class LintDiagramTool implements McpTool {
 
     private final ToolDefinition definition = new ToolDefinition("vp_lint_diagram", DESCRIPTION,
             JsonParser.parseString(INPUT_SCHEMA).getAsJsonObject());
+    private final StyleProfile profile;
+
+    /** Built-in default profile. */
+    public LintDiagramTool() {
+        this(StyleProfile.defaults());
+    }
+
+    public LintDiagramTool(StyleProfile profile) {
+        this.profile = profile;
+    }
 
     @Override
     public ToolDefinition getDefinition() {
@@ -57,7 +76,8 @@ public final class LintDiagramTool implements McpTool {
         JsonElement info = params.get("include_info");
         boolean includeInfo = info == null || !info.isJsonPrimitive() || info.getAsBoolean();
         JsonObject graph = new DiagramExtractor(false, warnings).extract(diagram, project);
-        JsonObject report = DiagramLinter.lint(graph, includeInfo);
+        JsonObject report = DiagramLinter.lint(graph, includeInfo, profile,
+                TextMeasure.awt(profile.fontName(), profile.fontSize()));
         report.add("warnings", graph.get("warnings"));
         return report;
     }

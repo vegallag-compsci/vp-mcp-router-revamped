@@ -12,6 +12,9 @@ against live VP before code (AGENTS.md).
 - Lint auto-fix suggestions: emit a ready `vp_preview_batch` op list per
   finding.
 
+- `duplicate_diagram` drops view nesting (children lose their container)
+  and shifts shapes ~1 px (ADR-0036, ADR-0035).
+
 ## Modelling
 
 - Text-to-diagram skill: requirements or PlantUML in, previewed batch out.

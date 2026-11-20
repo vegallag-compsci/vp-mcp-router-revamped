@@ -38,6 +38,7 @@ Built on [chramiq/vp-mcp-router](https://github.com/chramiq/vp-mcp-router):
 | `vp_list_changes`, `vp_revert_batch` | A change journal: see what the agent changed, undo one batch |
 | `vp_layout` | VP's auto-layouts, journaled so one call undoes them |
 | `vp_export_text` | PlantUML / Mermaid / JSON text of diagrams for git diffs and reports |
+| Layout lint + score in `vp_lint_diagram` | "Looks untidy" becomes concrete findings and a 0-100 score |
 | Windows installer and release script, Claude Code skill | First-class Windows + Claude Code support |
 
 See [CHANGELOG.md](CHANGELOG.md) for details.

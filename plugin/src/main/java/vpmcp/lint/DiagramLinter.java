@@ -31,6 +31,7 @@ public final class DiagramLinter {
     private static final Pattern NUMBERED = Pattern.compile("^([A-Za-z]{1,6})[-_ ]?(\\d{1,4})\\b");
 
     private final JsonObject graph;
+    private int minGap = MIN_GAP;
     private final Map<String, JsonObject> nodes = new LinkedHashMap<>();
     private final Map<String, Integer> degree = new HashMap<>();
     private final JsonArray findings = new JsonArray();
@@ -52,9 +53,23 @@ public final class DiagramLinter {
         }
     }
 
-    /** Runs every rule. includeInfo=false drops info-level findings. */
+    /** Runs every structural rule. includeInfo=false drops info-level findings. */
     public static JsonObject lint(JsonObject graph, boolean includeInfo) {
+        return lint(graph, includeInfo, null, null);
+    }
+
+    /**
+     * Structural rules plus, when a profile is given, the layout rules of
+     * {@link LayoutLinter} and a {@code layout} block with the 0-100 score
+     * (computed over every layout finding, info included, whatever
+     * includeInfo says).
+     */
+    public static JsonObject lint(JsonObject graph, boolean includeInfo,
+            vpmcp.layout.StyleProfile profile, vpmcp.layout.TextMeasure measure) {
         DiagramLinter linter = new DiagramLinter(graph);
+        if (profile != null) {
+            linter.minGap = profile.spacing("min_gap", MIN_GAP);
+        }
         linter.unconnected();
         linter.containment();
         linter.spacing();
@@ -62,7 +77,14 @@ public final class DiagramLinter {
         linter.numbering();
         linter.relationshipEnds();
         linter.documentation();
-        return linter.report(includeInfo);
+        if (profile == null) {
+            return linter.report(includeInfo);
+        }
+        LayoutLinter.run(graph, profile, measure).forEach(linter.findings::add);
+        JsonObject layout = LayoutLinter.score(linter.findings, LayoutLinter.shapeCount(graph), profile);
+        JsonObject result = linter.report(includeInfo);
+        result.add("layout", layout);
+        return result;
     }
 
     private void bump(String id) {
@@ -95,7 +117,7 @@ public final class DiagramLinter {
             String parentId = text(node, "parent_id");
             JsonObject parent = parentId == null ? null : nodes.get(parentId);
             String type = text(node, "model_type");
-            if (CONTAINER_TYPES.contains(type) && array(node, "child_ids").size() == 0) {
+            if (has(CONTAINER_TYPES, type) && array(node, "child_ids").size() == 0) {
                 add("empty_container", "info", type + " '" + name(node) + "' contains nothing.",
                         "Move the elements it should hold inside it, or remove it.", node);
             }
@@ -120,7 +142,11 @@ public final class DiagramLinter {
     private void spacing() {
         List<JsonObject> shapes = new ArrayList<>();
         for (JsonObject node : nodes.values()) {
-            if (bounds(node) != null && !CONTAINER_TYPES.contains(text(node, "model_type"))) {
+            // Swimlane headers and lane areas (no model, or header shapes) frame their nodes, not overlap them.
+            boolean swimlanePart = text(node, "model_type") == null
+                    || "ActivityPartitionHeader".equals(text(node, "shape_type"))
+                    || "ActivitySwimlane2".equals(text(node, "model_type"));
+            if (bounds(node) != null && !swimlanePart && !has(CONTAINER_TYPES, text(node, "model_type"))) {
                 shapes.add(node);
             }
         }
@@ -137,10 +163,10 @@ public final class DiagramLinter {
                 if (gap < 0) {
                     add("overlap", "warning", "'" + name(a) + "' and '" + name(b) + "' overlap.",
                             "Move one of them so they no longer cover each other.", a, b);
-                } else if (gap < MIN_GAP) {
+                } else if (gap < minGap) {
                     add("crowded", "info", "'" + name(a) + "' and '" + name(b) + "' are "
                             + (gap == 0 ? "touching." : "only " + gap + "px apart."),
-                            "Leave at least " + MIN_GAP + "px between shapes for readability.", a, b);
+                            "Leave at least " + minGap + "px between shapes for readability.", a, b);
                 }
             }
         }
@@ -246,7 +272,7 @@ public final class DiagramLinter {
     private void documentation() {
         List<JsonObject> missing = new ArrayList<>();
         for (JsonObject node : nodes.values()) {
-            if (DOCUMENTED_TYPES.contains(text(node, "model_type"))) {
+            if (has(DOCUMENTED_TYPES, text(node, "model_type"))) {
                 String doc = text(node, "documentation");
                 if (doc == null || doc.trim().isEmpty()) {
                     missing.add(node);
@@ -371,5 +397,10 @@ public final class DiagramLinter {
     private static JsonArray array(JsonObject holder, String field) {
         JsonElement value = holder.get(field);
         return value != null && value.isJsonArray() ? value.getAsJsonArray() : new JsonArray();
+    }
+
+    /** Null-safe membership (Set.of rejects null lookups; swimlane parts have no model type). */
+    static boolean has(Set<String> set, String value) {
+        return value != null && set.contains(value);
     }
 }

@@ -26,6 +26,7 @@ import vpmcp.tools.ListChangesTool;
 import vpmcp.tools.ListModelsTool;
 import vpmcp.tools.RevertBatchTool;
 import vpmcp.journal.ChangeJournal;
+import vpmcp.layout.StyleProfile;
 import vpmcp.tools.OpenDiagramTool;
 import vpmcp.vp.BackupManager;
 import vpmcp.vp.EdtToolInvoker;
@@ -87,7 +88,7 @@ public final class RouterPlugin implements VPPlugin {
                     .register(new OpenDiagramTool())
                     .register(new GetActiveDiagramTool())
                     .register(new GetSelectionTool())
-                    .register(new LintDiagramTool());
+                    .register(new LintDiagramTool(StyleProfile.load(pluginDir)));
             server = new McpServer(config.getBindAddress(), config.getPort(), registry,
                     new EdtToolInvoker(), VERSION, VpLog::error,
                     new FileResourceProvider(pluginDir, SCHEMA_VERSION, capabilities));
