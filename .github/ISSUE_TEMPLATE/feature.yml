@@ -1,0 +1,22 @@
+name: Feature
+description: Something the plugin cannot do yet.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What you were trying to do
+    validations:
+      required: true
+  - type: textarea
+    id: gap
+    attributes:
+      label: What is missing
+      description: The op, field or tool you reached for, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Possible approach
+      description: Optional. API calls, VP settings or probes worth trying.

@@ -34,3 +34,12 @@ ask the user to close it. Never launch, kill or restart VP yourself
   links, and `vp_lint_diagram` for reviews.
 - Never save unasked; offer `vp_save_project` after clean batches, and
   mention the first `backup` path an apply reports.
+
+## Issues
+
+Bugs and feature requests are tracked as GitHub issues (public repo). Use
+the `file-issue` skill (`.claude/skills/file-issue/`) to file, list or
+resolve them with `gh`: it drafts from the forms in
+`.github/ISSUE_TEMPLATE/`, scrubs personal and course data, and creates
+nothing without the user's OK. Fix commits end with `Fixes #N`. Labels:
+`scripts/setup-labels.ps1`.

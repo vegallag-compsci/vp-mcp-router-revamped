@@ -1,0 +1,41 @@
+name: Bug
+description: The plugin did something wrong, or preview and apply disagreed.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The wrong result, with the exact error or warning text.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should happen
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: The ops (JSON) or tool call that shows it, on a throwaway diagram. Leave out real model content.
+      render: json
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: From vp_capabilities, e.g. "plugin 0.17.0, VP Professional 18.1, schema v18.1".
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - "blocks work: wrong change, lost data, or no way around it"
+        - "rework: a workaround exists but costs a second batch"
+        - "annoyance: confusing output or wasted tokens"
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Trimmed tool output, a PNG, or log lines. No emails, author fields or course material.
